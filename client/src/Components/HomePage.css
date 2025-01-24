@@ -1,0 +1,32 @@
+h1 {
+    font-size: 500%;
+    margin-top: 10%
+}
+
+h2 {
+    /* boldness (100-900)*/
+    font-weight: 550;
+    margin-top: 5%
+}
+
+#login {
+    /* future 2 lines possible because of this */
+    display: flex;
+    /* horizontal alignment */
+    justify-content: center;
+    /* vertical alignment */
+    align-items: center;
+    /* arrange children in a column */
+    flex-direction: column;
+
+    /* vh works, % doesnt for some reason */
+    height: 100vh;
+    margin: auto;
+    text-align: center;
+}
+
+form {
+    /* margin-top: ; */
+    /* makes all dimensions 2x as big */
+    transform: scale(1.5);
+}

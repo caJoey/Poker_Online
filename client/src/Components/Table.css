@@ -1,0 +1,78 @@
+html,
+body,
+#root,
+.App,
+.everything {
+  height: 100vh;
+  width: 100%;
+}
+
+.tableBackground {
+  display: flex;
+  align-items: center; /* main axis */
+  justify-content: center; /* cross axis (perpendicular to main) */
+  height: 100vh;
+  width: 100%;
+  background: #2D3436;
+}
+
+.table {
+  width: 69%;
+  height: 69%;
+  background: radial-gradient(rgb(7, 72, 32), black);
+  /*border-width, style, and color */
+  border: 10px solid black;
+  border-radius: 110%;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+}
+
+.seat {
+  background-color: lightblue;
+  width: 12%;
+  height: 12%;
+  /* doesnt move when scrolled */
+  position: fixed;
+
+  border: 5px solid black;
+  border-radius: 5%;
+  text-align: center;
+
+  /* so text doesnt go outside of box */
+  min-width: 50px;
+  min-height: 50px;
+}
+
+.nameAndChips {
+  height: 100%;
+  /* margin-top: 50%; */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  /* 2% of minimum of view height and width */
+  font-size: 2vmin;
+}
+
+.button {
+  /* relative to nearest ancestor */
+  position: absolute;
+  top: -6.9vh;
+  left: 4vw;
+  width: 7.5vmin;
+  height: 7.5vmin;
+}
+
+.bet {
+  position: fixed;
+  color: white;
+  font-size: 125%;
+  /* width: 5vmin;
+  height: 5vmin;
+  border-radius: 50%;
+  background-color: white; */
+}
