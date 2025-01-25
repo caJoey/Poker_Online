@@ -32,7 +32,6 @@ body,
 }
 
 .seat {
-  background-color: lightblue;
   width: 12%;
   height: 12%;
   /* doesnt move when scrolled */
@@ -47,8 +46,16 @@ body,
   min-height: 50px;
 }
 
+.seatCheese {
+  background-color: paleturquoise;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
 .nameAndChips {
   height: 100%;
+  width: 100%;
   /* margin-top: 50%; */
   display: flex;
   flex-direction: column;
@@ -56,15 +63,16 @@ body,
   align-items: center;
   /* 2% of minimum of view height and width */
   font-size: 2vmin;
+  position: absolute;
 }
 
 .button {
   /* relative to nearest ancestor */
   position: absolute;
-  top: -6.9vh;
-  left: 4vw;
-  width: 7.5vmin;
-  height: 7.5vmin;
+  top: 7vh;
+  left: 9vw;
+  width: 5vmin;
+  height: 5vmin;
 }
 
 .bet {
@@ -75,4 +83,8 @@ body,
   height: 5vmin;
   border-radius: 50%;
   background-color: white; */
+}
+
+.card {
+  position: absolute;
 }

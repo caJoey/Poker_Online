@@ -5,11 +5,13 @@ import button from '../Images/crown.png';
 
 // stores location info for each player
 class Location {
-    constructor(top, left, betTop, betLeft) {
+    constructor(top, left, betTop, betLeft, btnTop, btnLeft) {
         this.top = top;
         this.left = left;
         this.betTop = betTop;
         this.betLeft = betLeft;
+        this.btnTop = btnTop;
+        this.btnLeft = btnLeft;
     }
 }
 
@@ -37,8 +39,8 @@ class PlayerInfo {
 
 // ith spot is info about ith seat's position
 const players = [
-    new PlayerInfo(new Location("70%","60%","61.5%","57.5%"),10000,"a"),
-    new PlayerInfo(new Location("70%","25%","61.5%","37.5%"),0,"bb"),
+    new PlayerInfo(new Location("70%","60%","61.5%","55%"),10000,"a"),
+    new PlayerInfo(new Location("70%","25%","61.5%","40%"),0,"bb"),
     new PlayerInfo(new Location("52%", "11%","49%","27%"), 0, "ccc"),
     new PlayerInfo(new Location("25%", "12%","34%","27%"), 0, "dddd"),
     new PlayerInfo(new Location("8%", "25%","22.5%","36%"), 0, "eeeee"),
@@ -69,7 +71,6 @@ export default function Table({ socket }) {
     const seats = players.map(player =>
         <PlayerBox playerInfo={player} />
     );
-    console.log(seats);
 
     return (
         <div className="everything">
@@ -116,23 +117,27 @@ function PlayerBox({ playerInfo }) {
     }
     const location = playerInfo.location;
     let content = <NameAndChips />;
+    console.log("window.location.origin", window.location.origin);
 
     // let content = <Plus />;
     return (
         <div className='seat' style={{
                 /* css stuff */
                 top: location.top,
-                left: location.left
+                left: location.left,
+                zIndex: 1
             }}>
-            <img className='button' src={button}></img>
-            <div className='bet' style={{top: location.betTop, left: location.betLeft, }}>
+            <div className='cards'></div>
+            {/* adding require is the only way without importing */}
+            <img style={{zIndex: -1}}className='card' src={require('../Images/Cards/back.jpg')}/>
+            <img style={{zIndex: -1}}className='card' src={require('../Images/Cards/back.jpg')}/>
+            {/* z-index wasnt working so this puts blue over card*/}
+            <div className='seatCheese'></div>
+            <img className='button' src={button}/>
+            <div className='bet' style={{top: location.betTop, left: location.betLeft}}>
                 <h3>10000</h3>
             </div>
             {content}
-            {/* <div className='nameAndChips'>
-                <h2 style={{marginTop: "10%"}}>{playerInfo.name}</h2>
-                <h2 style={{marginTop: "-10%"}}>{playerInfo.chips}</h2>
-            </div> */}
         </div>
     )
 }
