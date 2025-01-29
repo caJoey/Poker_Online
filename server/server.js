@@ -30,8 +30,14 @@ socketIO.on('connection', (socket) => {
   // register new user
   socket.on('newUser', (userObject) => {
     users.set(userObject.socketID, userObject["userName"]);
+    console.log('new user');
     //Sends the list of users to the client 
-    // socketIO.emit('newUserResponse', users);
+    socket.emit('updateTable', {1:"one"});
+  });
+
+  // player sits at table
+  socket.on('playerSit', (playerInfo) => {
+
   });
 
   socket.on('disconnect', () => {

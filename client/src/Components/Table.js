@@ -18,41 +18,42 @@ class Location {
 // stores all info about each player
 class PlayerInfo {
     name = ""; // default
-    constructor(location, chips, name) {
-        this.location = location;
+    constructor(chips, name) {
         this.name = name;
         this.chips = chips;
     }
 }
 
-// stores all info about each player
-// class PlayerInfo {
-//     name = ""; // default
-//     constructor(top, left, chips, name) {
-//         this.top = top;
-//         this.top = top;
-//         this.left = left;
-//         this.name = name;
-//         this.chips = chips;
-//     }
-// }
-
-// ith spot is info about ith seat's position
-const players = [
-    new PlayerInfo(new Location("70%","60%","61.5%","55%"),10000,"a"),
-    new PlayerInfo(new Location("70%","25%","61.5%","40%"),0,"bb"),
-    new PlayerInfo(new Location("52%", "11%","49%","27%"), 0, "ccc"),
-    new PlayerInfo(new Location("25%", "12%","34%","27%"), 0, "dddd"),
-    new PlayerInfo(new Location("8%", "25%","22.5%","36%"), 0, "eeeee"),
-    new PlayerInfo(new Location("5%", "42%","20.5%","47%"), 0, "ffffff"),
-    new PlayerInfo(new Location("8%", "58%","22.5%","59.5%"), 0, "ggggggg"),
-    new PlayerInfo(new Location("25%", "72%","33%","66.5%"), 0, "hhhhhhhhh"),
-    new PlayerInfo(new Location("52%", "73%","47.5%","66.5%"), 0, "iiiiiiii")
-];
-
 export default function Table({ socket }) {
     // username
     const [user, setUser] = useState("");
+
+    // stores hardcoded location data for player boxes
+    const locations = [
+        new Location("70%", "60%", "61.5%", "55%"),
+        new Location("70%", "27.5%", "61.5%", "40%"),
+        new Location("52%", "13.5%", "49%", "27%"),
+        new Location("25%", "12%", "34%", "27%"),
+        new Location("8%", "25%", "22.5%", "36%"),
+        new Location("5%", "42%", "20.5%", "47%"),
+        new Location("8%", "58%", "22.5%", "59.5%"),
+        new Location("25%", "72%", "33%", "66.5%"),
+        new Location("52%", "73%", "47.5%", "66.5%")
+    ]
+
+    // players[i] == info about ith player
+    const [players, setPlayers] = useState([
+        // let players = [
+        new PlayerInfo(10000, ""),
+        new PlayerInfo(10000, "bb"),
+        new PlayerInfo(10000, "ccc"),
+        new PlayerInfo(10000, "dddd"),
+        new PlayerInfo(10000, "eeeee"),
+        new PlayerInfo(10000, "ffffff"),
+        new PlayerInfo(10000, ""),
+        new PlayerInfo(10000, ""),
+        new PlayerInfo(10000, "iiiiiiii")
+    ]);
 
     useEffect(() => {
         async function getUsername() {
@@ -64,12 +65,16 @@ export default function Table({ socket }) {
         getUsername();
     }, [socket.id]); // only runs once since socket.id wont change
 
-    // useEffect(() => {
-    //     socket.on("")
-    // }, [socket]);
+    useEffect(() => {
+        socket.on('updateTable', (message) => {
+            console.log("POGUSERS: " + message[1]);
+            console.log(message);
+        });
+    }, [socket]);
 
+    let seatNumber = 0;
     const seats = players.map(player =>
-        <PlayerBox playerInfo={player} />
+        <PlayerBox playerInfo={player} location={locations[seatNumber]} seatNumber={seatNumber++} socket={socket} heroUsername={user}/>
     );
 
     return (
@@ -91,13 +96,19 @@ export default function Table({ socket }) {
 }
 
 // box that holds info about player
-function PlayerBox({ playerInfo }) {
+function PlayerBox({ playerInfo, location, seatNumber, socket, heroUsername}) {
+    
+    // tell socket that a new player wants to join
+    function registerPlayer() {
+        // socket.emit
+    }
 
     // name and chip count text
     function NameAndChips() {
         return (
             <div className='nameAndChips'>
-                <h2 style={{ marginTop: "10%" }}>{playerInfo.name}</h2>
+                <h2 style={{ marginTop: "10%" }}>{heroUsername}</h2>
+                {/* <h2 style={{ marginTop: "10%" }}>{playerInfo.name}</h2> */}
                 <h2 style={{ marginTop: "-10%" }}>{playerInfo.chips}</h2>
             </div>
         )
@@ -107,37 +118,30 @@ function PlayerBox({ playerInfo }) {
     function Plus() {
         return (
             <div className='nameAndChips'>
-                <img src={plus} alt='join icon'
-                    style={{
-                        height: 100,
-                        width: 100
-                }}></img>
+                <img className='joinButton' src={plus} alt='join icon' onclick={registerPlayer}></img>
             </div>
         )
     }
-    const location = playerInfo.location;
-    let content = <NameAndChips />;
-    console.log("window.location.origin", window.location.origin);
 
-    // let content = <Plus />;
     return (
         <div className='seat' style={{
                 /* css stuff */
                 top: location.top,
-                left: location.left,
-                zIndex: 1
+                left: location.left
             }}>
-            <div className='cards'></div>
-            {/* adding require is the only way without importing */}
-            <img style={{zIndex: -1}}className='card' src={require('../Images/Cards/back.jpg')}/>
-            <img style={{zIndex: -1}}className='card' src={require('../Images/Cards/back.jpg')}/>
+            {/* conditionally render players based on if spots are filled or not*/}
+            {playerInfo.name && <img className='card' src={require('../Images/Cards/2c.jpg')}/>}
+            {playerInfo.name && <img style={{left: '35%'}}className='card' src={require('../Images/Cards/Ah.jpg')}/>}
             {/* z-index wasnt working so this puts blue over card*/}
             <div className='seatCheese'></div>
-            <img className='button' src={button}/>
-            <div className='bet' style={{top: location.betTop, left: location.betLeft}}>
-                <h3>10000</h3>
-            </div>
-            {content}
+            {playerInfo.name && <img className='button' src={button}/>}
+            {playerInfo.name && <div className='bet' style={{top: location.betTop, left: location.betLeft}}>
+                <h3>{playerInfo.chips}</h3>
+            </div>}
+            {/* only renders if player has no name (nobody sitting here) and:
+            user is not sitting at a table*/}
+            {!playerInfo.name && false && <Plus/>}
+            {playerInfo.name && <NameAndChips/>}
         </div>
     )
 }
