@@ -5,7 +5,7 @@ import "./HomePage.css"
 export default function HomePage ({ socket }) {
     const navigate = useNavigate();
     const [userName, setUserName] = useState('');
-    const MIN_LEN = 2
+    const MIN_LEN = 1
 
     function onSubmit(event){
         // prevent page from refreshing
@@ -14,9 +14,8 @@ export default function HomePage ({ socket }) {
             alert(`minimum username length is ${MIN_LEN}`);
             return;
         }
-        //sends the username and socket ID to the Node.js server
         // new user registered when user types in name
-        socket.emit('newUser', { userName, socketID: socket.id }); // userName maps to self
+        socket.emit('newUser', userName); // userName maps to self
         navigate('/play');
     }
     return (

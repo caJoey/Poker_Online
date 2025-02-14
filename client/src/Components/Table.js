@@ -15,14 +15,7 @@ class Location {
     }
 }
 
-// stores all info about each player
-class PlayerInfo {
-    name = ""; // default
-    constructor(chips, name) {
-        this.name = name;
-        this.chips = chips;
-    }
-}
+let player_sitting = false;
 
 export default function Table({ socket }) {
     // username
@@ -42,18 +35,7 @@ export default function Table({ socket }) {
     ]
 
     // players[i] == info about ith player
-    const [players, setPlayers] = useState([
-        // let players = [
-        new PlayerInfo(10000, ""),
-        new PlayerInfo(10000, "bb"),
-        new PlayerInfo(10000, "ccc"),
-        new PlayerInfo(10000, "dddd"),
-        new PlayerInfo(10000, "eeeee"),
-        new PlayerInfo(10000, "ffffff"),
-        new PlayerInfo(10000, ""),
-        new PlayerInfo(10000, ""),
-        new PlayerInfo(10000, "iiiiiiii")
-    ]);
+    const [players, setPlayers] = useState([]);
 
     useEffect(() => {
         async function getUsername() {
@@ -62,13 +44,21 @@ export default function Table({ socket }) {
             const dataJSON = await data.json();
             setUser(dataJSON.username);
         }
+        async function initializePlayers() {
+            const query = `http://localhost:4000/playersInfo`;
+            const data = await fetch(query);
+            const dataJSON = await data.json();
+            setPlayers(dataJSON.players);
+        }
+        // get username of hero and initialize stuff on table
         getUsername();
+        initializePlayers();
     }, [socket.id]); // only runs once since socket.id wont change
 
     useEffect(() => {
-        socket.on('updateTable', (message) => {
-            console.log("POGUSERS: " + message[1]);
-            console.log(message);
+        // every time table gets updated, update table with updated info
+        socket.on('updateTable', (playersList) => {
+            setPlayers(playersList);
         });
     }, [socket]);
 
@@ -76,21 +66,25 @@ export default function Table({ socket }) {
     const seats = players.map(player =>
         <PlayerBox playerInfo={player} location={locations[seatNumber]} seatNumber={seatNumber++} socket={socket} heroUsername={user}/>
     );
-
-    return (
-        <div className="everything">
-
-            {/* table */}
-            <div className='tableBackground'>
-                <div className='table'></div>
+    if (players.length == 9) {
+        return (
+            <div className='everything'>
+    
+                {/* table */}
+                <div className='tableBackground'>
+                    <div className='table'></div>
+                </div>
+    
+                {/* seats */}
+                {seats}
+    
+    
             </div>
-
-            {/* seats */}
-            {seats}
-
-            {/* button */}
-
-
+        )   
+    }
+    // display this while the initial player data loads in
+    return (
+        <div className='everything'>
         </div>
     )
 }
@@ -100,14 +94,19 @@ function PlayerBox({ playerInfo, location, seatNumber, socket, heroUsername}) {
     
     // tell socket that a new player wants to join
     function registerPlayer() {
-        // socket.emit
+        if (!heroUsername) {
+            return;
+        }
+        player_sitting = true;
+        // if player isnt already sitting down, have them sit down and update server
+        socket.emit('playerSit', heroUsername, 10000, seatNumber);
     }
 
     // name and chip count text
     function NameAndChips() {
         return (
             <div className='nameAndChips'>
-                <h2 style={{ marginTop: "10%" }}>{heroUsername}</h2>
+                <h2 style={{ marginTop: "10%" }}>{playerInfo.name}</h2>
                 {/* <h2 style={{ marginTop: "10%" }}>{playerInfo.name}</h2> */}
                 <h2 style={{ marginTop: "-10%" }}>{playerInfo.chips}</h2>
             </div>
@@ -118,10 +117,42 @@ function PlayerBox({ playerInfo, location, seatNumber, socket, heroUsername}) {
     function Plus() {
         return (
             <div className='nameAndChips'>
-                <img className='joinButton' src={plus} alt='join icon' onclick={registerPlayer}></img>
+                <img className='joinButton' src={plus} alt='join icon' onClick={registerPlayer}></img>
             </div>
         )
     }
+    // there is a player sitting here
+    if (playerInfo.name) {
+        return (
+            <div className='seat' style={{
+                /* css stuff */
+                top: location.top,
+                left: location.left
+            }}>
+                {<img className='card' src={require('../Images/Cards/2c.jpg')} />}
+                <img style={{ left: '35%' }} className='card' src={require('../Images/Cards/Ah.jpg')} />
+                {/* z-index wasnt working so this puts blue over card*/}
+                <div className='seatCheese'></div>
+                <img className='button' src={button} />
+                <div className='bet' style={{ top: location.betTop, left: location.betLeft }}>
+                    <h3>{playerInfo.chips}</h3>
+                </div>
+                <NameAndChips />
+            </div>
+        )
+    }
+    // there is no player sitting here
+    return (
+        <div className='seat' style={{
+            /* css stuff */
+            top: location.top,
+            left: location.left
+        }}>
+            {/* z-index wasnt working so this puts blue over card*/}
+            <div className='seatCheese'></div>
+            {!player_sitting && <Plus /> /* only show plus if player isnt sitting */}
+        </div>
+    )
 
     return (
         <div className='seat' style={{
@@ -140,7 +171,7 @@ function PlayerBox({ playerInfo, location, seatNumber, socket, heroUsername}) {
             </div>}
             {/* only renders if player has no name (nobody sitting here) and:
             user is not sitting at a table*/}
-            {!playerInfo.name && false && <Plus/>}
+            {!playerInfo.name && !player_sitting && <Plus/>}
             {playerInfo.name && <NameAndChips/>}
         </div>
     )

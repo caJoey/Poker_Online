@@ -18,29 +18,163 @@ const socketIO = require('socket.io')(http, {
   }
 });
 
+const positions = {
+  BB: 0,
+  SB: 1,
+  OTHER: 2
+};
+
+// stores all info about a player (only if they are sitting)
+class PlayerInfo {
+  constructor(name, chips) {
+      this.name = name;
+      this.chips = chips;
+      this.betSize = 0; // how much this player is currently betting
+      this.seatNum = -1;
+      this.myTurn = false;
+      this.sittingOut = false;
+      this.isPlaying = false; // whether or not player is playing in the current hand (turns to true every time we deal in)
+      this.timer = Infinity; // shot clock for this player
+      this.cards = []; // size 2, holds string form of players cards, empty if they have folded
+  }
+}
+
+// whether or not the game is going or not (stops when <= 1 player remains, starts when >1 joined)
+let gameStarted = false;
+// true if we are playing heads up (different postflop and dealing rules)
+let headsUp = false;
+// seat positions of key spots
+let BTN = -1;
+let SB = -1;
+let BB = -1;
+
 // maps socket id -> username
 const users = new Map();
-// map of users to their seat
-// const seats = new Map();
+
+// initialize player infos
+const players = [];
+for (let i = 0; i < 9; i++) {
+  players.push(new PlayerInfo("", 0));
+}
+const activePlayers = [];
+
+// set blinds
+function setBlinds(currentBB) {
+  // randomize blinds
+  if (currentBB == undefined) {
+    currentBB = Math.floor(Math.random() * (activePlayers.length+1));
+  }
+}
+
+// returns number of players in the current hand
+function currentPlayerCount() {
+  let count = 0;
+  for (let i = 0; i < 9; i++) {
+    if (players[i].name && !players[i].sittingOut && players[i].isPlaying) {
+      count++;
+    }
+  }
+  return count;
+}
+
+// returns how many players are at the table and participating
+function playerCount() {
+  let count = 0;
+  for (let i = 0; i < 9; i++) {
+    if (players[i].name && !players[i].sittingOut) {
+      count++;
+    }
+  }
+  return count;
+}
+
+// starts the game when >= 2 players arent sitting out
+function startGame(currentBB) {
+  if (gameStarted) {
+    return;
+  }
+  // initialize active players
+  for (let i = 0; i < 9; i++) {
+    if (!players[i].sittingOut) {
+      players[i].isPlaying = true;
+    }
+  }
+  setBlinds(currentBB);
+}
+
+// returns which seat player is at, or -1 if they arent sitting
+function playerSeat(username) {
+  for (let i = 0; i < 9; i++) {
+    if (username == players[i].name) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// resets a seat when a player leaves
+function reset(seatnum) {
+  if (seatnum == -1) return;
+  players[seatnum] = new PlayerInfo("", 0);
+}
+
+// updates all players of the current state of the table
+// also checks for starting or stopping the game
+function updatePlayers() {
+  // sends to all connected clients
+  socketIO.emit('updateTable', players);
+  console.log("updating table");
+}
+
+// player leaving table.
+function removePlayer(socketid) {
+  const username = users.get(socketid);
+  reset(playerSeat(username));
+  users.delete(socketid);
+  updatePlayers();
+}
 
 // listens for new websocket connection, socket is connected client
 socketIO.on('connection', (socket) => {
   console.log(`⚡: ${socket.id} user just connected!`);
 
   // register new user
-  socket.on('newUser', (userObject) => {
-    users.set(userObject.socketID, userObject["userName"]);
-    console.log('new user');
-    //Sends the list of users to the client 
-    socket.emit('updateTable', {1:"one"});
+  socket.on('newUser', (username) => {
+    if (!username) {
+      return;
+    }
+    // allows user to change username, but not have multiple seats
+    // (assuming same socketio connection)
+    console.log(username);
+    if (users.has(socket.id)) { // player is already sitting, update their name
+      players[playerSeat(users.get(socket.id))].name = username;
+    }
+    users.set(socket.id, username);
+    updatePlayers();
   });
 
   // player sits at table
-  socket.on('playerSit', (playerInfo) => {
-
+  socket.on('playerSit', (playerName, chipCount, seatNumber) => {
+    if (!playerName) {
+      return;
+    }
+    console.log("player sit");
+    players[seatNumber] = new PlayerInfo(playerName, chipCount);
+    players[seatNumber].
+    users.set(socket.id, playerName);
+    count = playerCount();
+    if (!gameStarted && count == 2) {
+      gameStarted = true;
+      headsUp = true;
+      startGame();
+    } else if (count == 3) {
+      headsUp = false;
+    }
+    updatePlayers();
   });
 
   socket.on('disconnect', () => {
+    removePlayer(socket.id);
     console.log('🔥: A user disconnected');
   });
 });
@@ -55,6 +189,12 @@ app.get('/username', (req, res) => {
       username: users.get(id)
     });
   }
+});
+
+app.get('/playersInfo', (req, res) => {
+  res.json({
+    players: players 
+  });
 });
 
 http.listen(PORT, () => {
