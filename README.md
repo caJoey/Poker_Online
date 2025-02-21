@@ -1,4 +1,4 @@
-# Poker_Online
+# Poker Online
 ![](https://github.com/caJoey/Poker_Online/blob/main/client/src/Images/HomePage.PNG)
 ![](https://github.com/caJoey/Poker_Online/blob/main/client/src/Images/Table.PNG)
 
