@@ -5,13 +5,11 @@ import button from '../Images/crown.png';
 
 // stores location info for each player
 class Location {
-    constructor(top, left, betTop, betLeft, btnTop, btnLeft) {
+    constructor(top, left, betTop, betLeft) {
         this.top = top;
         this.left = left;
         this.betTop = betTop;
         this.betLeft = betLeft;
-        this.btnTop = btnTop;
-        this.btnLeft = btnLeft;
     }
 }
 
@@ -23,19 +21,22 @@ export default function Table({ socket }) {
 
     // stores hardcoded location data for player boxes
     const locations = [
-        new Location("70%", "60%", "61.5%", "55%"),
-        new Location("70%", "27.5%", "61.5%", "40%"),
-        new Location("52%", "13.5%", "49%", "27%"),
-        new Location("25%", "12%", "34%", "27%"),
-        new Location("8%", "25%", "22.5%", "36%"),
-        new Location("5%", "42%", "20.5%", "47%"),
-        new Location("8%", "58%", "22.5%", "59.5%"),
-        new Location("25%", "72%", "33%", "66.5%"),
-        new Location("52%", "73%", "47.5%", "66.5%")
+        new Location("70%", "60%", "-40%", "-25%"),
+        new Location("70%", "27.5%", "-40%", "110%"),
+        new Location("52%", "13.5%", "-30%", "110%"),
+        new Location("25%", "12%", "30%", "110%"),
+        new Location("8%", "25%", "100%", "90%"),
+        new Location("5%", "42%", "100%", "40%"),
+        new Location("8%", "58%", "100%", "-10%"),
+        new Location("25%", "72%", "33%", "-30%"),
+        new Location("52%", "73%", "-20%", "-30%")
     ]
 
     // players[i] == info about ith player
     const [players, setPlayers] = useState([]);
+    const [cards, setCards] = useState([]);
+    // current highest bet
+    const [betSize, setBet] = useState([]);
 
     useEffect(() => {
         async function getUsername() {
@@ -60,11 +61,46 @@ export default function Table({ socket }) {
         socket.on('updateTable', (playersList) => {
             setPlayers(playersList);
         });
+        // for updating hero's cards
+        socket.on('updateCards', (cardsList) => {
+            setCards(cardsList);
+            console.log("set cards");
+        });
+        // for updating the current highest bet that people are facing
+        socket.on('updateBet', (bet) => {
+            setBet(bet);
+            console.log("set bet");
+        });
     }, [socket]);
 
-    let seatNumber = 0;
+    // buttons if we are facing a bet
+    function ActionButtons() {
+        return (
+            <div className='actionButtons'>
+                <button className='actionButton' style={{backgroundColor:'rgb(37, 211, 69)'}}>call</button>
+                <button className='actionButton' style={{backgroundColor:'rgb(228, 136, 38)'}}>raise</button>
+                <button className='actionButton' style={{backgroundColor:'rgb(225, 33, 33)'}}>fold</button>
+            </div>
+        )
+    }
+
+    let actionButtons;
+    // if its my turn, return true and assign action buttons, else false
+    function itsMyTurn() {
+        for (const player of players) {
+            if (player.name === user && player.myTurn) {
+                actionButtons = <ActionButtons/>;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    console.log(players);
+
     const seats = players.map(player =>
-        <PlayerBox playerInfo={player} location={locations[seatNumber]} seatNumber={seatNumber++} socket={socket} heroUsername={user}/>
+        <PlayerBox playerInfo={player} location={locations[player.seatnum]}
+        socket={socket} heroUsername={user} heroCards={cards}/>
     );
     if (players.length == 9) {
         return (
@@ -78,7 +114,7 @@ export default function Table({ socket }) {
                 {/* seats */}
                 {seats}
     
-    
+                {itsMyTurn() && actionButtons}
             </div>
         )   
     }
@@ -90,7 +126,7 @@ export default function Table({ socket }) {
 }
 
 // box that holds info about player
-function PlayerBox({ playerInfo, location, seatNumber, socket, heroUsername}) {
+function PlayerBox({ playerInfo, location, socket, heroUsername, heroCards}) {
     
     // tell socket that a new player wants to join
     function registerPlayer() {
@@ -99,7 +135,7 @@ function PlayerBox({ playerInfo, location, seatNumber, socket, heroUsername}) {
         }
         player_sitting = true;
         // if player isnt already sitting down, have them sit down and update server
-        socket.emit('playerSit', heroUsername, 10000, seatNumber);
+        socket.emit('playerSit', heroUsername, 10000, playerInfo.seatnum);
     }
 
     // name and chip count text
@@ -121,21 +157,36 @@ function PlayerBox({ playerInfo, location, seatNumber, socket, heroUsername}) {
             </div>
         )
     }
+
     // there is a player sitting here
     if (playerInfo.name) {
+        let card1 = '';
+        let card2 = '';
+        if (playerInfo.name == heroUsername) {
+            console.log("yes match=========");
+            console.log(playerInfo.hasCards);
+            console.log(heroCards);
+        }
+        if (playerInfo.hasCards && playerInfo.name == heroUsername) {
+            card1 = heroCards[0];
+            card2 = heroCards[1];
+        } else if (playerInfo.hasCards) {
+            card1 = card2 = 'back';
+        }
         return (
             <div className='seat' style={{
                 /* css stuff */
                 top: location.top,
                 left: location.left
             }}>
-                {<img className='card' src={require('../Images/Cards/2c.jpg')} />}
-                <img style={{ left: '35%' }} className='card' src={require('../Images/Cards/Ah.jpg')} />
+                {card1 && <img className='card' src={require(`../Images/Cards/${card1}.jpg`)} />}
+                {card2 && <img className='card' style={{ left: '35%' }} src={require(`../Images/Cards/${card2}.jpg`)}/>}
                 {/* z-index wasnt working so this puts blue over card*/}
                 <div className='seatCheese'></div>
-                <img className='button' src={button} />
+                {playerInfo.isButton && <img className='button' src={button} />}
                 <div className='bet' style={{ top: location.betTop, left: location.betLeft }}>
-                    <h3>{playerInfo.chips}</h3>
+                    <h3>{playerInfo.betSize > 0 && playerInfo.betSize}</h3>
+                    {/* <h3>{10000}</h3> */}
                 </div>
                 <NameAndChips />
             </div>
@@ -151,28 +202,6 @@ function PlayerBox({ playerInfo, location, seatNumber, socket, heroUsername}) {
             {/* z-index wasnt working so this puts blue over card*/}
             <div className='seatCheese'></div>
             {!player_sitting && <Plus /> /* only show plus if player isnt sitting */}
-        </div>
-    )
-
-    return (
-        <div className='seat' style={{
-                /* css stuff */
-                top: location.top,
-                left: location.left
-            }}>
-            {/* conditionally render players based on if spots are filled or not*/}
-            {playerInfo.name && <img className='card' src={require('../Images/Cards/2c.jpg')}/>}
-            {playerInfo.name && <img style={{left: '35%'}}className='card' src={require('../Images/Cards/Ah.jpg')}/>}
-            {/* z-index wasnt working so this puts blue over card*/}
-            <div className='seatCheese'></div>
-            {playerInfo.name && <img className='button' src={button}/>}
-            {playerInfo.name && <div className='bet' style={{top: location.betTop, left: location.betLeft}}>
-                <h3>{playerInfo.chips}</h3>
-            </div>}
-            {/* only renders if player has no name (nobody sitting here) and:
-            user is not sitting at a table*/}
-            {!playerInfo.name && !player_sitting && <Plus/>}
-            {playerInfo.name && <NameAndChips/>}
         </div>
     )
 }

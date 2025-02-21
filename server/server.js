@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const PORT = 4000;
+const BLIND = 100;
 
 // wrap express app in an HTTP server which Socket.IO uses
 const http = require('http').Server(app);
@@ -18,24 +19,21 @@ const socketIO = require('socket.io')(http, {
   }
 });
 
-const positions = {
-  BB: 0,
-  SB: 1,
-  OTHER: 2
-};
-
 // stores all info about a player (only if they are sitting)
 class PlayerInfo {
-  constructor(name, chips) {
+  constructor(name, chips, seatnum) {
       this.name = name;
       this.chips = chips;
       this.betSize = 0; // how much this player is currently betting
-      this.seatNum = -1;
+      this.seatnum = seatnum;
       this.myTurn = false;
       this.sittingOut = false;
-      this.isPlaying = false; // whether or not player is playing in the current hand (turns to true every time we deal in)
+      this.isBB = false;
+      this.isSB = false;
+      this.isButton = false;
+      this.hasCards = false; // true if player has cards
       this.timer = Infinity; // shot clock for this player
-      this.cards = []; // size 2, holds string form of players cards, empty if they have folded
+      // this.isPlaying = false; // whether or not player is playing in the current hand (turns to true every time we deal in)
   }
 }
 
@@ -43,41 +41,160 @@ class PlayerInfo {
 let gameStarted = false;
 // true if we are playing heads up (different postflop and dealing rules)
 let headsUp = false;
-// seat positions of key spots
-let BTN = -1;
-let SB = -1;
-let BB = -1;
 
 // maps socket id -> username
 const users = new Map();
+// maps username -> socket id
+const ids = new Map();
+// maps socket id -> the cards that this player holds
+let cards = new Map();
 
 // initialize player infos
 const players = [];
 for (let i = 0; i < 9; i++) {
-  players.push(new PlayerInfo("", 0));
+  players.push(new PlayerInfo("", 0, i));
 }
-const activePlayers = [];
+let activePlayers = [];
+let BBSeat = -1;
+let SBSeat = -1;
+let BTNSeat = -1;
+let betSize = 0;
+let deck = [
+  '2c','2d','2h','2s',
+  '3c','3d','3h','3s',
+  '4c','4d','4h','4s',
+  '5c','5d','5h','5s',
+  '6c','6d','6h','6s',
+  '7c','7d','7h','7s',
+  '8c','8d','8h','8s',
+  '9c','9d','9h','9s',
+  '10c','10d','10h','10s',
+  'Jc','Jd','Jh','Js',
+  'Qc','Qd','Qh','Qs',
+  'Kc','Kd','Kh','Ks',
+  'Ac','Ad','Ah','As'
+];
 
-// set blinds
-function setBlinds(currentBB) {
-  // randomize blinds
-  if (currentBB == undefined) {
-    currentBB = Math.floor(Math.random() * (activePlayers.length+1));
-  }
+function resetTable() {
+  BBSeat = -1;
+  SBSeat = -1;
+  BTNSeat = -1;
+  betSize = 0;
+  gameStarted = false;
+  headsUp = false;
 }
 
-// returns number of players in the current hand
-function currentPlayerCount() {
-  let count = 0;
-  for (let i = 0; i < 9; i++) {
-    if (players[i].name && !players[i].sittingOut && players[i].isPlaying) {
-      count++;
+// returns the active seat to the right of seat (precondition >= 2 active players)
+function nextRight(seat) {
+  for (const player of activePlayers) {
+    if (player.seatnum > seat) {
+      return player.seatnum;
     }
   }
-  return count;
+  return activePlayers[0].seatnum;
 }
 
-// returns how many players are at the table and participating
+// returns the active seat to the left of seat (precondition >= 2 active players)
+function nextLeft(seat) {
+  for (let i = activePlayers.length -1; i > -1; i--) {
+    const player = activePlayers[i];
+    if (player.seatnum < seat) {
+      return player.seatnum;
+    }
+  }
+  return activePlayers[activePlayers.length - 1].seatnum;
+}
+
+// picks random number between 0 and end exclusive
+function randRange(end) {
+  return Math.floor(Math.random() * end);
+}
+
+// returns a random card from the deck, and pops a card off
+function randCard() {
+  return deck.splice(randRange(deck.length), 1)[0];
+}
+
+// place a bet for the player if we can
+function bet(player, betSize) {
+  if (player.betSize + betSize > player.chips) {
+    return;
+  }
+  player.betSize += betSize;
+  player.chips -= betSize;
+  updatePlayers();
+}
+
+// deal cards to each active player, returns remaining deck
+function dealCards() {
+  console.log('dealing cards');
+  cards = new Map();
+  deck = [
+    '2c','2d','2h','2s',
+    '3c','3d','3h','3s',
+    '4c','4d','4h','4s',
+    '5c','5d','5h','5s',
+    '6c','6d','6h','6s',
+    '7c','7d','7h','7s',
+    '8c','8d','8h','8s',
+    '9c','9d','9h','9s',
+    '10c','10d','10h','10s',
+    'Jc','Jd','Jh','Js',
+    'Qc','Qd','Qh','Qs',
+    'Kc','Kd','Kh','Ks',
+    'Ac','Ad','Ah','As'
+  ];
+  for (const player of activePlayers) {
+    const cardArr = [];
+    cardArr.push(randCard());
+    cardArr.push(randCard());
+    const id = ids.get(player.name);
+    // send cards to player
+    cards.set(id, cardArr);
+    socketIO.to(id).emit('updateCards', cardArr);
+    players[player.seatnum].hasCards = true;
+  }
+}
+
+// sets the blinds for the next round
+function setBlinds() {
+  console.log('setting blinds');
+  if (BBSeat == -1) { // randomize BB / SB / BTN
+    BBSeat = activePlayers[randRange(activePlayers.length)].seatnum;
+    SBSeat = nextLeft(BBSeat);
+    if (headsUp) {
+      BTNSeat = SBSeat;
+    } else {
+      BTNSeat = nextLeft(SBSeat);
+    }
+  } else { // advance the blinds
+    const BBSave = BBSeat;
+    BBSeat = nextRight(BBSeat);
+    // find next SB
+    const SBmaybe = nextLeft(BBSeat);
+    if (headsUp) {
+      SBSeat = BTNSeat = SBmaybe;
+    } else {
+      // prevent SB from going backwards
+      if (SBmaybe != BBSave) {
+        SBSeat = -1;
+        BTNSeat = SBmaybe;
+      } else {
+        SBSeat = SBmaybe;
+        BTNSeat = nextLeft(SBSeat);
+      }
+    }
+  }
+  players[BBSeat].isBB = true;
+  bet(players[BBSeat], BLIND);
+  if (SBSeat > -1) {
+    players[SBSeat].isSB = true;
+    bet(players[SBSeat], BLIND / 2);
+  }
+  players[BTNSeat].isButton = true;
+}
+
+// returns how many players are at the table and not sitting out
 function playerCount() {
   let count = 0;
   for (let i = 0; i < 9; i++) {
@@ -88,18 +205,39 @@ function playerCount() {
   return count;
 }
 
-// starts the game when >= 2 players arent sitting out
-function startGame(currentBB) {
+// set blinds, deal cards, give action to first player
+function startStep() {
+  // games already going
   if (gameStarted) {
     return;
   }
-  // initialize active players
+  console.log('Start step initiated');
+  // initialize players for current hand
+  activePlayers = [];
   for (let i = 0; i < 9; i++) {
-    if (!players[i].sittingOut) {
-      players[i].isPlaying = true;
+    const player = players[i];
+    if (player.name && !player.sittingOut) {
+      activePlayers.push(player);
     }
   }
-  setBlinds(currentBB);
+  if (activePlayers.length > 3) {
+    gameStarted = true;
+    if (activePlayers.length == 2) {
+      headsUp = true;
+    }
+    // load the blinds
+    setBlinds();
+    // deal the cards, collect remaining part of deck
+    dealCards();
+    // put action onto first to act
+    players[nextRight(BBSeat)].myTurn = true;
+    updatePlayers();
+  }
+  // this will happen in the endstep, temporary
+  console.log(activePlayers);
+  console.log(`bb: ${BBSeat} sb: ${SBSeat} btn: ${BTNSeat}`);
+  updatePlayers();
+  resetTable();
 }
 
 // returns which seat player is at, or -1 if they arent sitting
@@ -115,7 +253,7 @@ function playerSeat(username) {
 // resets a seat when a player leaves
 function reset(seatnum) {
   if (seatnum == -1) return;
-  players[seatnum] = new PlayerInfo("", 0);
+  players[seatnum] = new PlayerInfo("", 0, players[seatnum].seatnum);
 }
 
 // updates all players of the current state of the table
@@ -123,6 +261,7 @@ function reset(seatnum) {
 function updatePlayers() {
   // sends to all connected clients
   socketIO.emit('updateTable', players);
+
   console.log("updating table");
 }
 
@@ -131,6 +270,7 @@ function removePlayer(socketid) {
   const username = users.get(socketid);
   reset(playerSeat(username));
   users.delete(socketid);
+  ids.delete(username);
   updatePlayers();
 }
 
@@ -145,11 +285,11 @@ socketIO.on('connection', (socket) => {
     }
     // allows user to change username, but not have multiple seats
     // (assuming same socketio connection)
-    console.log(username);
     if (users.has(socket.id)) { // player is already sitting, update their name
       players[playerSeat(users.get(socket.id))].name = username;
     }
     users.set(socket.id, username);
+    ids.set(username, socket.id);
     updatePlayers();
   });
 
@@ -158,24 +298,21 @@ socketIO.on('connection', (socket) => {
     if (!playerName) {
       return;
     }
-    console.log("player sit");
-    players[seatNumber] = new PlayerInfo(playerName, chipCount);
-    players[seatNumber].
+    players[seatNumber] = new PlayerInfo(playerName, chipCount, seatNumber);
+    // players[seatNumber].
     users.set(socket.id, playerName);
-    count = playerCount();
-    if (!gameStarted && count == 2) {
-      gameStarted = true;
-      headsUp = true;
-      startGame();
-    } else if (count == 3) {
-      headsUp = false;
-    }
+    ids.set(playerName, socket.id);
     updatePlayers();
+    startStep();
   });
 
   socket.on('disconnect', () => {
     removePlayer(socket.id);
     console.log('🔥: A user disconnected');
+  });
+
+  socket.on('next', () => {
+    
   });
 });
 
