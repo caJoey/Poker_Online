@@ -40,6 +40,11 @@ let hand;
 let hands;
 let commCards;
 let res;
+let players;
+let player1;
+let player2;
+let player3;
+let player4;
 
 test('high card', () => {
     hand = ['2c', 'Js'];
@@ -150,23 +155,61 @@ test('royal flush', () => {
 });
 
 test('resolve', () => {
+    // mock the PlayerInfos
+    player1 = {holeCards: ['As', '9c']};
+    player2 = {holeCards: ['5s', 'Qd']};
+    player3 = {holeCards: ['Ac', '5h']};
     commCards = ['2h', '4h', '8h', 'Js', '10s'];
-    hands = [['As', '9c'], ['5s', 'Qd'], ['Ac', '5h']];
-    res = resolver.resolve(hands, commCards);
-    expect(res).toEqual([['As', '9c'], ['Ac', '5h'], ['5s', 'Qd']]);
+    // hands = [['As', '9c'], ['5s', 'Qd'], ['Ac', '5h']];
+    players = [player1, player2, player3];
+    res = resolver.resolve(players, commCards);
+    expect(res).toEqual([[player1], [player3], [player2]]);
     
+    player1 = {holeCards: ['Ks', '6s']};
+    player2 = {holeCards: ['Ad', 'Js']};
     commCards = ['2h', '7h', '3c', '9d', 'As'];
-    hands = [['Ks', '6s'], ['Ad', 'Js']];
-    res = resolver.resolve(hands, commCards);
-    expect(res).toEqual([['Ad', 'Js'], ['Ks', '6s']]);
+    players = [player1, player2];
+    res = resolver.resolve(players, commCards);
+    expect(res).toEqual([[player2], [player1]]);
     
+    player1 = {holeCards: ['Jh', '9d']};
+    player2 = {holeCards: ['Qh', '5s']};
+    player3 = {holeCards: ['Ac', 'Kd']};
+    player4 = {holeCards: ['4d', '9c']};
     commCards = ['Qh', '5h', 'Qc', 'Ah', '3d'];
-    hands = [['Jh', '9d'], ['Qh', '5s'], ['Ac', 'Kd'], ['4d', '9c']];
-    res = resolver.resolve(hands, commCards);
-    expect(res).toEqual([['Qh', '5s'], ['Ac', 'Kd'], ['Jh', '9d'], ['4d', '9c']]);
+    players = [player1, player2, player3, player4];
+    res = resolver.resolve(players, commCards);
+    expect(res).toEqual([[player2], [player3], [player1], [player4]]);
 
+    player1 = {holeCards: ['Ah', '10h']};
+    player2 = {holeCards: ['Ad', '10d']};
+    player3 = {holeCards: ['Qh', '2s']};
     commCards = ['Kd', 'Qd', '9s', 'Jd', '2c'];
-    hands = [['Ah', '10h'], ['Ad', '10d'], ['Qh', '2s']];
-    res = resolver.resolve(hands, commCards);
-    expect(res).toEqual([['Ad', '10d'], ['Ah', '10h'], ['Qh', '2s']]);
+    players = [player1, player2, player3];
+    res = resolver.resolve(players, commCards);
+    expect(res).toEqual([[player2], [player1], [player3]]);
+
+    player1 = {holeCards: ['Ah', '10h']};
+    player2 = {holeCards: ['Ad', '10d']};
+    player3 = {holeCards: ['Qh', '2s']};
+    commCards = ['Qh', 'Ac', '4d', '5d', 'Ah'];
+    players = [player1, player2, player3];
+    res = resolver.resolve(players, commCards);
+    expect(res).toEqual([[player1, player2], [player3]]);
+
+    player1 = {holeCards: ['Qh', '2s']};
+    player2 = {holeCards: ['Ad', '10d']};
+    player3 = {holeCards: ['Ah', '10h']};
+    commCards = ['Qh', 'Ac', '4d', '5d', 'Ah'];
+    players = [player1, player2, player3];
+    res = resolver.resolve(players, commCards);
+    expect(res).toEqual([[player2, player3], [player1]]);
+
+    player1 = {holeCards: ['As', '10s']};
+    player2 = {holeCards: ['Ad', '10d']};
+    player3 = {holeCards: ['Ah', '10h']};
+    commCards = ['Qh', '2s', '4d', '5d', 'Ah'];
+    players = [player1, player2, player3];
+    res = resolver.resolve(players, commCards);
+    expect(res).toEqual([[player1, player2, player3]]);
 });

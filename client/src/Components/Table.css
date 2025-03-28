@@ -73,7 +73,6 @@ body,
 .bet {
   position: absolute;
   color: white;
-  font-size: 125%;
   /* width: 5vmin;
   height: 5vmin;
   border-radius: 50%;
@@ -180,4 +179,29 @@ body,
   width: 10%;
   border: 1px solid black;
   aspect-ratio: 118/179;
+}
+
+.potWrap {
+  position: absolute;
+  /* height will be auto */
+  width: 20%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  left: 40%;
+  top: 60%;
+}
+
+.pot {
+  color: white;
+  font-size: 2vmin;
+  font-weight: 500;
+}
+
+.sparkle {
+  position: absolute;
+  top: -75%;
+  left: -5%;
+  width: 110%;
+  z-index: 1;
 }

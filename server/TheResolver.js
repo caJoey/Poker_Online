@@ -25,22 +25,41 @@ class TheResolver {
         ['K', 'm'],
         ['A', 'n'],
     ]);
-    // sorts players' cards based on strength descending
-    resolve(activeCards, commCards) {
+    // sorts players based on their cards, strength descending
+    resolve(activePlayers, commCards) {
+         // maps PlayerInfo object -> strength string
+        this.strengthCache = new Map();
         this.commCards = commCards;
-        let activeCards2 = activeCards.slice();
+        let activePlayers2 = activePlayers.slice();
         // arrow function inherits 'this' from parent,
         // doesn't set it to undefined
-        activeCards2.sort((a, b) => this.compare(a, b));
-        return activeCards2;
+        activePlayers2.sort((a, b) => this.compare(a, b));
+        // combine equal strength hands together [[same strength hands], [same strength hands]]
+        const returner = [];
+        let i = 0;
+        while (i < activePlayers2.length) {
+            const nextAdd = [activePlayers2[i]];
+            i++;
+            while (i < activePlayers2.length &&
+                this.strengthCache.get(nextAdd[0]) == this.strengthCache.get(activePlayers2[i])) {
+                    nextAdd.push(activePlayers2[i]);
+                    i++;
+            }
+            returner.push(nextAdd);
+        }
+        return returner;
     }
     // -1 if a < b; 0 if a == b; 1 if a > b
     // (a and b are hole cards of 2 players)
     compare(a, b) {
-        console.log(a, b);
-        const aStrength = this.strength(a);
-        const bStrength = this.strength(b);
-        console.log(aStrength, bStrength);
+        if (!this.strengthCache.has(a)) {
+            this.strengthCache.set(a, this.strength(a.holeCards));
+        }
+        if (!this.strengthCache.has(b)) {
+            this.strengthCache.set(b, this.strength(b.holeCards));
+        }
+        const aStrength = this.strengthCache.get(a);
+        const bStrength = this.strengthCache.get(b);
         if (aStrength < bStrength) {
             return 1;
         } else if (aStrength > bStrength) {
@@ -54,6 +73,7 @@ class TheResolver {
         const cardsSeven = [];
         // just the letters, represent hand strength
         const lettersSeven = [];
+        console.log(playerCards);
         const allCards = playerCards.concat(this.commCards);
         for (const card of allCards) {
             const number = this.ranks.get(card.substring(0, card.length - 1));
