@@ -13,7 +13,6 @@ export default function PlayerBox({playerInfo, location, socket, heroUsername, h
         if (!heroUsername) {
             return;
         }
-        console.log('registerPlayer');
         setSitting(true);
         // if player isnt already sitting down, have them sit down and update server
         socket.emit('playerSit', heroUsername, 10000, playerInfo.seatnum);
@@ -23,9 +22,12 @@ export default function PlayerBox({playerInfo, location, socket, heroUsername, h
     function NameAndChips() {
         return (
             <div className='nameAndChips'>
-                <h2 style={{ marginTop: "12.5%" }}>{playerInfo.name}</h2>
-                {/* <h2 style={{ marginTop: "10%" }}>{playerInfo.name}</h2> */}
-                <h2 style={{ marginTop: "-10%" }}>{playerInfo.chips}</h2>
+                <h2 style={{ marginTop: "12.5%" }}>
+                    {playerInfo.name}
+                </h2>
+                {playerInfo.sittingOut
+                && <h2 style={{ marginTop: "-12.5%" }}>(sitting out)</h2>}
+                <h2 style={{ marginTop: "-12.5%" }}>{playerInfo.chips}</h2>
             </div>
         )
     }
@@ -49,6 +51,13 @@ export default function PlayerBox({playerInfo, location, socket, heroUsername, h
         return (<div className='seatCheese' style={{backgroundColor: 'rgb(132, 133, 133)'}}></div>)
     }
 
+    function opacity() {
+        if (playerInfo.sittingOut) {
+            return .25;
+        }
+        return 1;
+    }
+
     // there is a player sitting here
     if (playerInfo.name) {
         let card1 = '';
@@ -64,7 +73,8 @@ export default function PlayerBox({playerInfo, location, socket, heroUsername, h
             <div className='seat' style={{
                 /* css stuff */
                 top: location.top,
-                left: location.left
+                left: location.left,
+                opacity: opacity()
             }}>
                 {card1 && <img className='card' src={require(`../Images/Cards/${card1}.jpg`)} />}
                 {card2 && <img className='card' style={{ left: '35%' }} src={require(`../Images/Cards/${card2}.jpg`)}/>}
@@ -74,12 +84,11 @@ export default function PlayerBox({playerInfo, location, socket, heroUsername, h
                 <div className='bet' style={{ top: location.betTop, left: location.betLeft }}>
                     <h3>{playerInfo.betSize > 0 && playerInfo.betSize}</h3>
                 </div>
-                <NameAndChips />
+                <NameAndChips/>
                 {playerInfo.winner && <img className='sparkle' src={sparkle}/>}
             </div>
         )
     }
-    console.log('no player here');
     // there is no player sitting here
     return (
         <div className='seat' style={{

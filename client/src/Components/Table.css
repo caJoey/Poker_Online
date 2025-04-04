@@ -54,10 +54,10 @@ body,
   /* margin-top: 50%; */
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content:center;
   align-items: center;
   /* 2% of minimum of view height and width */
-  font-size: 2vmin;
+  font-size: 1.5vmin;
   position: absolute;
 }
 
@@ -204,4 +204,21 @@ body,
   left: -5%;
   width: 110%;
   z-index: 1;
+}
+
+.sitOutButton {
+  width: 7.5%;
+  height: 8%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: rgb(66, 85, 204);
+  /* border: 5px solid black; */
+  border-radius: 25%;
+  font-size: 2vmin;
+
+  position: fixed;
+  left: 2%;
+  bottom: 3%;
 }

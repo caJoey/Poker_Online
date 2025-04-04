@@ -116,7 +116,6 @@ class GameController {
         };
         // TODO: handle players leaving / joining mid game
         // if (this.gameStarted && this.activePlayers.length) {
-        //     console.log('this')
         //     return;
         // }
         // initialize everything for next hand
@@ -128,6 +127,7 @@ class GameController {
             player.isBB = false;
             player.isSb = false;
             player.isButton = false;
+            player.holeCards = [];
             player.maxWin = Infinity;
             player.winner = false;
             if (player.name && !player.sittingOut) {
@@ -188,9 +188,6 @@ class GameController {
             player.betSize = 0;
             // player loses
             if (player.chips == 0) {
-                // console.log('player lost')
-                // console.log(player)
-                // console.log('\n\n\n\n\n\n\n\n')
                 this.removePlayer(player.name);
             }
         }
@@ -271,9 +268,6 @@ class GameController {
         const foldIndex = this.activePlayers.indexOf(player);
         this.activePlayers.splice(foldIndex, 1);
         this.activeCards.splice(foldIndex, 1);
-        // win condition for a player
-        if (!this.activePlayers.length == 1) {
-        }
         this.nextThreshold--;
         this.nextProgress--;
         this.foldQueue.push(player);
@@ -284,38 +278,74 @@ class GameController {
         const player = this.players[this.playerSeat(username)];
         // call
         if (this.gameState.betSize > 0) {
-            this.bet(player, Math.min(player.chips, this.gameState.betSize));
-            // this.raiseTo(player, this.gameState.betSize);
+            if (player.chips + player.betSize < this.gameState.betSize) {
+                this.bet(player, player.chips);
+            } else {
+                this.raiseTo(player, this.gameState.betSize);
+            }
         }
         this.passTurn(player);
         this.updatePlayers();
     }
-    // pass the turn to the next active player given previous seat
+    // toggle the sitting out status of player + return resulting status
+    sitOut(username) {
+        const player = this.players[this.playerSeat(username)];
+        player.sittingOut = !player.sittingOut;
+        // check for start condition in case someone came back and we can now play
+        // TODO: remove if
+        if (!this.gameStarted) {
+            this.startStep();
+        }
+        this.updatePlayers();
+        return player.sittingOut;
+    }
+    // pass the turn to the next active player given previous player
     passTurn(player) {
         player.myTurn = false;
         this.nextProgress++;
         while (this.nextProgress < this.nextThreshold) {
             player = this.players[this.nextLeft(player.seatnum)];
-            // players[nextLeft(player.seatnum)] = nextLeft(player.seatnum);
-            if (player.chips > 0) {
+            if (player.chips > 0 && !player.sittingOut) {
                 break;
+            } else if (player.chips > 0 && player.sittingOut) { // sitting out, auto move
+                if (this.gameState.betSize > player.betSize) {
+                    this.fold(player.name);
+                } else {
+                    this.callCheck(player.name);
+                }
+                return;
             }
             this.nextProgress++;
         }
         // everyone good, go to next step
-        if (this.nextProgress == this.nextThreshold) {
-            // last round, 
+        if (this.nextProgress == this.nextThreshold || this.activePlayers.length == 1) {
+            // last round
             if (!this.everyoneExceptOnePersonIsAllIn()) {
                 this.nextTurn();
             }
             this.handleSidepots();
-            this.collectBets();
-            this.gameState.minRaise = this.BLIND;
-            this.gameState.betSize = 0;
             // showdown street
             if (this.turn == this.SHOWDOWN || this.everyoneExceptOnePersonIsAllIn()) {
+                // give highest bettor spare chips
+                let secondHighestBet = 0;
+                for (const player of this.activePlayers) {
+                    if (player.betSize > secondHighestBet && player.betSize < this.gameState.betSize) {
+                        secondHighestBet = player.betSize;
+                    }
+                }
+                for (const player of this.activePlayers) {
+                    if (player.betSize > secondHighestBet) {
+                        const diff = player.betSize - secondHighestBet;
+                        player.chips += diff;
+                        player.betSize -= diff;
+                    }
+                }
+                this.collectBets();
                 this.endStep();
             } else { // next street
+                this.collectBets();
+                this.gameState.minRaise = this.BLIND;
+                this.gameState.betSize = 0;
                 this.nextProgress = 0;
                 let startSeat = this.nextLeft(this.BTNSeat);
                 // skip the players that have no chips left
@@ -343,15 +373,11 @@ class GameController {
     }
     // set the maxWin for each player in sidePots array
     handleSidepots() {
-        console.log('this.sidePots')
-        console.log(this.sidePots)
         for (const player of this.sidePots) {
             player.maxWin = this.gameState.pot;
             for (const opponent of this.players) {
                 player.maxWin += Math.min(opponent.betSize, player.betSize);
             }
-            console.log('side pot');
-            console.log(player.name, player.maxWin);
         }
         this.sidePots.length = 0;
     }
@@ -364,7 +390,7 @@ class GameController {
         for (const player of this.foldQueue) {
             player.betSize = 0;
         }
-        this.foldQueue = [];
+        this.foldQueue.length = 0;
         // TODO: check for people who bet but left the table
         // (set them to sitting out until
         // next street starts)
@@ -403,15 +429,10 @@ class GameController {
     // distributes winnings given order of players
     // TODO: test
     distributeWinnings(winningOrder) {
-        for (const group of winningOrder) {
-            console.log(group);
-        }
         // highest max win we have seen so far, prevents people
         // with lower maxWin to win chips after losing their sidepot
         let maxMaxWin = 0;
         // each playerGroup is a tie
-        console.log('winning order');
-        console.log(winningOrder);
         for (const playerGroup of winningOrder) {
             // sort group on maxWin ascending
             playerGroup.sort((a, b) => a.maxWin - b.maxWin);

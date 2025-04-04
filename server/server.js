@@ -63,9 +63,10 @@ socketIO.on('connection', (socket) => {
         socket.emit('updateHeroSitting', true);
         // TODO: uncomment
         // const playerInfo = new PlayerInfo(username, chipCount, seatNumber);
+        // TODO: remove (sitting out test)
+        // playerInfo.sittingOut = true;
         gameController.playerSit(playerInfo, socket.id);
     });
-
     socket.on('disconnect', () => {
         if (users.has(socket.id)) {
             const info = users.get(socket.id);
@@ -74,13 +75,11 @@ socketIO.on('connection', (socket) => {
         }
         console.log('🔥: A user disconnected');
     });
-
     socket.on('fold', () => {
         const info = users.get(socket.id);
         info.gameController.fold(info.username);
         // fold(socketToPlayer(socket.id));
     });
-
     socket.on('callCheck', () => {
         const info = users.get(socket.id);
         info.gameController.callCheck(info.username);
@@ -90,6 +89,11 @@ socketIO.on('connection', (socket) => {
         const info = users.get(socket.id);
         info.gameController.raise(info.username, amount);
         // raise(socketToPlayer(socket.id), amount);
+    });
+    socket.on('sitOut', () => {
+        const info = users.get(socket.id);
+        const res = info.gameController.sitOut(info.username);
+        socket.emit('updateHeroSittingOut', res);
     });
 });
 
@@ -107,14 +111,24 @@ app.get('/username', (req, res) => {
         });
     }
 });
-
+app.get('/everyoneExceptOnePersonIsAllIn', (req, res) => {
+    if (Object.entries(req.query).length == 0 || req.query.socketID == undefined) {
+        res.send("🚨 no socketID specified");
+    } else if(!users.has(req.query.socketID)) {
+        res.send("no username");
+    } else {
+        const info = users.get(req.query.socketID);
+        res.json({
+            everyoneExceptOnePersonIsAllIn: info.gameController.everyoneExceptOnePersonIsAllIn()
+        });
+    }
+});
 // TODO: fix
 app.get('/playersInfo', (req, res) => {
     res.json({
         gameState: masterController.gameState
     });
 });
-
 http.listen(PORT, () => {
     console.log(`Server listening on http://localhost:${PORT}/`);
 });

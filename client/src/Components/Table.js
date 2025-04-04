@@ -45,11 +45,11 @@ export default function Table({ socket }) {
     // initialize dummy GameState
     const [gameState, setGameState] = useState(new GameState([]));
     const [heroSitting, setSitting] = useState(false);
+    const [heroSittingOut, setSittingOut] = useState(false);
     // username
     const [user, setUser] = useState("");
     const [cards, setCards] = useState([]); // hero's hole cards
 
-    console.log(socket.id);
     useEffect(() => {
         async function getUsername() {
             const query = `http://localhost:4000/username?socketID=${socket.id}`;
@@ -64,7 +64,6 @@ export default function Table({ socket }) {
             const query = `http://localhost:4000/playersInfo`;
             const data = await fetch(query);
             const dataJSON = await data.json();
-            console.log('setting gameState');
             setGameState(dataJSON.gameState);
             // setPlayers(dataJSON.gameState.players);
         }
@@ -87,17 +86,17 @@ export default function Table({ socket }) {
         socket.on('updateHeroSitting', (isSitting) => {
             setSitting(isSitting);
         });
+        // for updating hero's sitting out status
+        socket.on('updateHeroSittingOut', (isSittingOut) => {
+            setSittingOut(isSittingOut);
+        });
     }, [socket]);
 
     let actionButtons;
     // if its my turn, return true and assign action buttons, else false
     function itsMyTurn() {
-        console.log('itsMyTurn');
-        console.log(gameState);
         for (const player of gameState.players) {
             if (player.name === user && player.myTurn) {
-                console.log('gameState');
-                console.log(gameState);
                 actionButtons = <ActionButtons socket={socket} heroInfo={player} 
                 betSize={gameState.betSize} minRaise={gameState.minRaise}/>;
                 return true;
@@ -105,7 +104,23 @@ export default function Table({ socket }) {
         }
         return false;
     }
-
+    function toggleSittingOut() {
+        socket.emit('sitOut');
+    }
+    // bottom left sit out button
+    function SittingOutButton() {
+        // first determine if player is sitting at table
+        // note: player cant sit out during their turn
+        if (heroSitting && !itsMyTurn()) {
+            let text = 'Sit Out'
+            if (heroSittingOut) {
+                text = 'Unsit Out'
+            }
+            return (<button className='sitOutButton' onClick={toggleSittingOut}>
+                {text}</button>)
+        }
+        return <></>;
+    }
     const seats = gameState.players.map(player =>
         <PlayerBox playerInfo={player} location={locations[player.seatnum]}
         socket={socket} heroUsername={user} heroCards={cards} heroSitting={heroSitting}/>
@@ -125,6 +140,7 @@ export default function Table({ socket }) {
                     </div>
                 </div>
                 {itsMyTurn() && actionButtons}
+                {heroSitting && <SittingOutButton/>}
             </div>
         )   
     }

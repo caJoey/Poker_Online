@@ -3,10 +3,22 @@ import './Table.css';
 
 // buttons if we are facing a bet
 export default function ActionButtons({socket, heroInfo, betSize, minRaise}) {
+    const [hideRaise, setHideRaise] = useState(false);
+    useEffect(() => {
+        async function getAllIn() {
+            const query = `http://localhost:4000/everyoneExceptOnePersonIsAllIn?socketID=${socket.id}`;
+            const data = await fetch(query);
+            const dataJSON = await data.json();
+            setHideRaise(dataJSON.everyoneExceptOnePersonIsAllIn);
+        }
+        console.log('running getAllIn in actionButtons...')
+        getAllIn();
+        console.log(`hideRaise ${hideRaise}`);
+    }, [socket.id]); // only runs once
     const [raiseSlider, setRaiseSlider] =
-    useState(Math.min(heroInfo.chips+heroInfo.betSize,minRaise+betSize));
+        useState(Math.min(heroInfo.chips + heroInfo.betSize, minRaise + betSize));
     const [call, setCall] = useState(Math.min(betSize - heroInfo.betSize, heroInfo.chips));
-    
+
     const handleSlider = (event) => {
         let betVal = Number(event.target.value);
         if (Number.isNaN(betVal)) {
@@ -51,7 +63,7 @@ export default function ActionButtons({socket, heroInfo, betSize, minRaise}) {
         return props;
     }
     const slideProps = sliderProps();
-    let playerGottaGoAllIn = betSize >= heroInfo.chips + heroInfo.betSize;
+    let playerGottaGoAllIn = (betSize >= heroInfo.chips + heroInfo.betSize) || hideRaise;
     return (
         <div className='buttonsAndSlider'>
             {!playerGottaGoAllIn &&

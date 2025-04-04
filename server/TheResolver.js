@@ -73,7 +73,6 @@ class TheResolver {
         const cardsSeven = [];
         // just the letters, represent hand strength
         const lettersSeven = [];
-        console.log(playerCards);
         const allCards = playerCards.concat(this.commCards);
         for (const card of allCards) {
             const number = this.ranks.get(card.substring(0, card.length - 1));
