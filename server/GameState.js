@@ -9,8 +9,11 @@ class GameState {
     minRaise = 0;
     pot = 0;
     commCards = [];
-    constructor(players) {
+    gameStarted = false;
+    constructor(players, roomName, adminUser) {
         this.players = players;
+        this.roomName = roomName;
+        this.adminUser = adminUser;
     }
 }
 

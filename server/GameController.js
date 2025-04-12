@@ -9,7 +9,7 @@ class GameController {
     RIVER = 3;
     SHOWDOWN = 4;
     BLIND = 100
-    // whether or not the game is going or not (stops when <= 1 player remains, starts when >1 joined)
+    // whether or not the game is going or not (starts when admin clicks start)
     gameStarted = false;
     // true if we are playing heads up (different postflop and dealing rules)
     headsUp = false;
@@ -35,14 +35,11 @@ class GameController {
     sidePots = [];
     foldQueue = [];
     deck = [];
-    constructor(roomName, socketIO) {
-        this.roomName = roomName;
+    constructor(roomName, socketIO, adminUser) {
         this.socketIO = socketIO;
-        // initialize player infos as empty seats
-        for (let i = 0; i < 9; i++) {
-            this.players.push(new PlayerInfo("", 0, i));
-        }
-        this.gameState = new GameState(this.players);
+        // add initial player to the list
+        this.players.push(new PlayerInfo(adminUser, 10000, 0, true));
+        this.gameState = new GameState(this.players, roomName, adminUser);
     }
     // set blinds, deal cards, give action to first player
     startStep() {
@@ -114,10 +111,6 @@ class GameController {
                 this.players[player.seatnum].holeCards = ['back', 'back'];
             }
         };
-        // TODO: handle players leaving / joining mid game
-        // if (this.gameStarted && this.activePlayers.length) {
-        //     return;
-        // }
         // initialize everything for next hand
         this.gameState.betSize = this.gameState.minRaise = this.BLIND;
         this.activePlayers = [];
@@ -140,7 +133,7 @@ class GameController {
         this.gameState.commCards = [];
         this.updatePlayers();
         if (this.activePlayers.length > 2) {
-            this.gameStarted = true;
+            this.gameState.gameStarted = true;
             if (this.activePlayers.length == 2) {
                 this.headsUp = true;
             }
@@ -193,7 +186,6 @@ class GameController {
         }
         this.updatePlayers();
         await this.sleep(3000);
-        this.gameStarted = false;
         this.startStep();
     }
     // returns the active seat to the right of seat (precondition >= 2 active players)
@@ -217,7 +209,7 @@ class GameController {
     }
     // updates all players of the current state of the table
     updatePlayers() {
-        this.socketIO.to(this.roomName).emit('updateTable', this.gameState);
+        this.socketIO.to(this.gameState.roomName).emit('updateTable', this.gameState);
     }
     // picks random number between 0 and end exclusive
     randRange(end) {
@@ -291,10 +283,8 @@ class GameController {
     sitOut(username) {
         const player = this.players[this.playerSeat(username)];
         player.sittingOut = !player.sittingOut;
-        // check for start condition in case someone came back and we can now play
-        // TODO: remove if
-        if (!this.gameStarted) {
-            this.startStep();
+        if (player.myTurn) {
+            this.fold(player.name);
         }
         this.updatePlayers();
         return player.sittingOut;
@@ -412,10 +402,12 @@ class GameController {
         this.cards.delete(username);
         this.updatePlayers();
     }
-    // resets a seat when a player leaves
+    // resets a seat when a player leaves, may leave bet out there
     reset(seatnum) {
         if (seatnum == -1) return;
+        const betSize = this.players[seatnum].betSize;
         this.players[seatnum] = new PlayerInfo('', 0, seatnum);
+        this.players[seatnum].betSize = betSize;
     }
     // returns which seat player is at, or -1 if they arent sitting
     playerSeat(username) {
@@ -462,17 +454,53 @@ class GameController {
         }
     }
     // sit the player at the table
-    playerSit(playerInfo, socketID) {
-        this.ids.set(playerInfo.name, socketID);
-        const seat = playerInfo.seatnum;
-        // player already sitting here
-        if (this.players[seat].name) {
-            return;
-        }
-        this.players[seat] = playerInfo;
-        this.startStep();
+    // playerSit(playerInfo, socketID) {
+    //     this.ids.set(playerInfo.name, socketID);
+    //     const seat = playerInfo.seatnum;
+    //     // player already sitting here
+    //     if (this.players[seat].name) {
+    //         return;
+    //     }
+    //     this.players[seat] = playerInfo;
+    //     this.updatePlayers();
+    // }
+    // player comes back 
+    socketChange(username, newSocketID) {
+        this.ids.set(username, newSocketID);
+        console.log(this.ids);
         this.updatePlayers();
     }
+    // returns info about player to initialize their frontend
+    playerInformation(username) {
+        let heroSitting = false;
+        let heroSittingOut = false;
+        let cards = [];
+        const seat = this.playerSeat(username);
+        if (seat > -1) {
+            const player = this.players[seat];
+            heroSitting = true;
+            heroSittingOut = player.sittingOut;
+            cards = player.cards;
+        }
+        // gameState
+        return {
+            gameState: this.gameState,
+            heroSitting: heroSitting,
+            heroSittingOut: heroSittingOut,
+            cards: cards
+        }
+    }
+    // schedule player for deletion
+    // scheduleForDeletion(username) {
+    //     const seat = this.playerSeat(username);
+    //     // player actively in the hand, dont insta remove
+    //     if (seat > -1 && this.activePlayers.includes(this.players[seat])
+    //     && this.players[seat].holeCards) {
+    //         this.players[seat].scheduledForDeletion = true;
+    //     } else {
+    //         this.removePlayer(username);
+    //     }
+    // }
     // sleeps for ms milliseconds
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));

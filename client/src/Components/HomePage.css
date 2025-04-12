@@ -29,3 +29,39 @@ form {
     /* makes all dimensions 2x as big */
     transform: scale(1.5);
 }
+
+.createOrJoin {
+    aspect-ratio: 4/3;
+    width: 50vmax;
+    max-height: 100vh;
+    max-width: 100vw;
+    /* height: 50%; */
+    /* background-color: red; */
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 1vmax;
+}
+
+.choiceButton {
+    aspect-ratio: 1/1;
+    background-color: rgb(91, 195, 195);
+    height: 50%;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.choiceButton img {
+    height: 25%;
+    width: 25%;
+    margin-top: -5%;
+}
+
+.choiceButton h2 {
+    font-size: 250%;
+}

@@ -29,7 +29,9 @@ class UserInfo {
 // GameControllers for each game
 // const rooms = [];
 // maps socket id -> {username, GameController}
-users = new Map();
+const users = new Map();
+// maps code/room name -> GameController
+const codeToGame = new Map();
 const masterController = new GameController(ROOM, socketIO);
 
 // picks random number between 0 and end exclusive
@@ -41,44 +43,80 @@ function randRange(end) {
 socketIO.on('connection', (socket) => {
     console.log(`⚡: ${socket.id} user just connected!`);
 
+    // sit us out if we are seated
+    function sitUsOut() {
+        // user didnt make it to the table
+        if (!users.has(socket.id)) {
+            return;
+        }
+        const info = users.get(socket.id);
+        const playerSeat = info.gameController.playerSeat(info.username);
+        // player isnt at the table so we dont need to reconnect them
+        if (playerSeat == -1) {
+            return;
+        }
+        // sit them out rn while theyre DC'd
+        if (info.gameController.players[playerSeat].sittingOut == false) {
+            info.gameController.sitOut(info.username);
+        }
+    }
     // register new user
     socket.on('newUser', (username) => {
         if (!username) {
             return;
         }
-        if (!users.has(socket.id)) { // player not is already ingame, add them
-            users.set(socket.id, new UserInfo(username, masterController));
-            // join room
-            socket.join(ROOM);
-        }
+        users.set(socket.id, new UserInfo(username, null));
+        // join room
+        // socket.join(ROOM);
     });
-
-    // player sits at table
-    socket.on('playerSit', (username, chipCount, seatNumber) => {
-        if (!username) {
+    // create a new sit n go lobby
+    socket.on('createGame', () => {
+        const info = users.get(socket.id);
+        // user not registered, this shouldnt happen
+        if (!info) {
             return;
         }
-        const gameController = users.get(socket.id).gameController;
-        const playerInfo = new PlayerInfo(username, randRange(10001), seatNumber);
-        socket.emit('updateHeroSitting', true);
-        // TODO: uncomment
-        // const playerInfo = new PlayerInfo(username, chipCount, seatNumber);
-        // TODO: remove (sitting out test)
-        // playerInfo.sittingOut = true;
-        gameController.playerSit(playerInfo, socket.id);
-    });
-    socket.on('disconnect', () => {
-        if (users.has(socket.id)) {
-            const info = users.get(socket.id);
-            info.gameController.removePlayer(info.username);
-            users.delete(socket.id);
+        const randoms = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        let code = '';
+        for (let i = 0; i < 5; i++) {
+            code += randoms[randRange(26)];
         }
+        socket.join(code);
+        const gameController = new GameController(code, socketIO, info.username);
+        codeToGame.set(code, gameController);
+        info.gameController = gameController;
+    });
+    // join the game with given code
+    socket.on('joinGame', (code) => {
+        const gameController = codeToGame.get(code);
+        const info = users.get(socket.id);
+        if (!gameController || !info) {
+            return;
+        }
+        info.gameController = gameController;
+        socket.join(code);
+
+    });
+    // player sits at table
+    // socket.on('playerSit', (username, chipCount, seatNumber) => {
+    //     if (!username) {
+    //         return;
+    //     }
+    //     const gameController = users.get(socket.id).gameController;
+    //     const playerInfo = new PlayerInfo(username, randRange(10001), seatNumber);
+    //     socket.emit('updateHeroSitting', true);
+    //     // TODO: uncomment
+    //     // const playerInfo = new PlayerInfo(username, chipCount, seatNumber);
+    //     gameController.playerSit(playerInfo, socket.id);
+    // });
+    socket.on('disconnect', () => {
         console.log('🔥: A user disconnected');
+        sitUsOut();
     });
     socket.on('fold', () => {
         const info = users.get(socket.id);
         info.gameController.fold(info.username);
-        // fold(socketToPlayer(socket.id));
+        // fold(socketToPlayer(socket.id))
     });
     socket.on('callCheck', () => {
         const info = users.get(socket.id);
@@ -94,6 +132,14 @@ socketIO.on('connection', (socket) => {
         const info = users.get(socket.id);
         const res = info.gameController.sitOut(info.username);
         socket.emit('updateHeroSittingOut', res);
+    });
+    // exit table and return to home
+    socket.on('brexit', () =>  {
+        sitUsOut();
+        // mark for deletion
+        const info = users.get(socket.id);
+        info.gameController.removePlayer(info.username);
+        users.delete(socket.id);
     });
 });
 
@@ -123,10 +169,66 @@ app.get('/everyoneExceptOnePersonIsAllIn', (req, res) => {
         });
     }
 });
-// TODO: fix
+// return info about the player
 app.get('/playersInfo', (req, res) => {
+    if (Object.entries(req.query).length == 0 || req.query.socketID == undefined) {
+        res.send("🚨 no socketID specified");
+    } else if(!users.has(req.query.socketID)) {
+        res.send("no username");
+    } else {
+        const info = users.get(req.query.socketID);
+        res.json(info.gameController.playerInformation(info.username));
+        // return info.gameController.playerInformation(info.username);
+    }
+});
+// return true if player was at a table when they left
+app.get('/reconnectCheck', (req, res) => {
+    // TODO: remove (vibe testing purposes)
     res.json({
-        gameState: masterController.gameState
+        alreadyConnected: false
+    });
+    return;
+    if (Object.entries(req.query).length == 0 || req.query.socketID == undefined) {
+        res.send("no socketID specified");
+    } else {
+        const newId = req.query.socketID;
+        const oldId = req.query.oldId;
+        const socket = socketIO.sockets.sockets.get(newId);
+        // player is returning
+        if (oldId && users.has(oldId)) {
+            // change the socket over to new one
+            const info = users.get(oldId);
+            // const info = users.get(req.query.socketID);
+            info.gameController.socketChange(info.username, newId);
+            users.set(newId, info);
+            users.delete(oldId);
+            socket.join(ROOM);
+            res.json({
+                alreadyConnected: true
+            });
+        } else {
+            res.json({
+                alreadyConnected: false
+            });
+        }
+    }
+});
+// user attempts to join a game with code
+app.get('/joinGame', (req, res) => {
+    const socketID = req.query.socketID;
+    const socket = socketIO.sockets.sockets.get(socketID);
+    const guess = req.query.guess;
+    const gameController = codeToGame.get(guess);
+    if (!gameController) {
+        res.json({
+            success: false
+        });
+        return;
+    }
+    // join this game
+    socket.emit('joinGame', guess);
+    res.json({
+        success: true
     });
 });
 http.listen(PORT, () => {

@@ -14,7 +14,7 @@ body,
   align-items: center; /* cross axis (perpendicular to main) */
   height: 100vh;
   width: 100vw;
-  background: #2D3436;
+  background-color: #2D3436;
 }
 
 .table {
@@ -221,4 +221,24 @@ body,
   position: fixed;
   left: 2%;
   bottom: 3%;
+}
+
+.preStart {
+  height: 90%;
+  width: 40%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: top;
+
+  /*border-width, style, and color */
+  border: 5px solid black;
+}
+
+.preStart h2 {
+  font-size: 250%;
+}
+
+.preStart li {
+  font-size: 150%;
 }
