@@ -32,7 +32,6 @@ class UserInfo {
 const users = new Map();
 // maps code/room name -> GameController
 const codeToGame = new Map();
-const masterController = new GameController(ROOM, socketIO);
 
 // picks random number between 0 and end exclusive
 function randRange(end) {
@@ -46,7 +45,8 @@ socketIO.on('connection', (socket) => {
     // sit us out if we are seated
     function sitUsOut() {
         // user didnt make it to the table
-        if (!users.has(socket.id)) {
+        if (!users.has(socket.id) || !users.get(socket.id).gameController
+        || !users.get(socket.id).gameController.gameState.gameStarted) {
             return;
         }
         const info = users.get(socket.id);
@@ -83,20 +83,25 @@ socketIO.on('connection', (socket) => {
         }
         socket.join(code);
         const gameController = new GameController(code, socketIO, info.username);
+        gameController.addPlayer(info.username, socket.id);
         codeToGame.set(code, gameController);
         info.gameController = gameController;
     });
     // join the game with given code
-    socket.on('joinGame', (code) => {
-        const gameController = codeToGame.get(code);
-        const info = users.get(socket.id);
-        if (!gameController || !info) {
-            return;
-        }
-        info.gameController = gameController;
-        socket.join(code);
+    // socket.on('joinGame', (code) => {
+    //     const gameController = codeToGame.get(code);
+    //     const info = users.get(socket.id);
+    //     console.log(`gameController ${gameController}`);
+    //     console.log(`info ${info}`);
+    //     if (!gameController || !info) {
+    //         return;
+    //     }
+    //     console.log('here68');
+    //     info.gameController = gameController;
+    //     socket.join(code);
+    //     info.gameController.addPlayer(info.username, socket.id);
+    // });
 
-    });
     // player sits at table
     // socket.on('playerSit', (username, chipCount, seatNumber) => {
     //     if (!username) {
@@ -135,11 +140,41 @@ socketIO.on('connection', (socket) => {
     });
     // exit table and return to home
     socket.on('brexit', () =>  {
+        // just sit player out of they are participating
         sitUsOut();
-        // mark for deletion
         const info = users.get(socket.id);
-        info.gameController.removePlayer(info.username);
-        users.delete(socket.id);
+        if (!info) {
+            return;
+        }
+        // exiting when player isnt at the table, full delete
+        // TODO: check for admin transfer, make this look less ugly
+        const gameController = info.gameController;
+        const username = info.username;
+        if (!gameController.gameState.gameStarted
+            || gameController.playerSeat(username) == -1) {
+            // game hasnt started, remove player from game
+            info.gameController.deletePlayer(username);
+            // check for admin transfer
+            if (gameController.players.length >= 1 && username == gameController.gameState.adminUser) {
+                gameController.gameState.adminUser = gameController.players[0].name;
+                gameController.updatePlayers();
+                console.log(gameController.players);
+            }
+            users.delete(socket.id);
+        }
+    });
+    // start the game
+    socket.on('startGame', () => {
+        const info = users.get(socket.id);
+        if (!info) {
+            return;
+        }
+        const gameController = info.gameController;
+        const username = info.username;
+        if (!gameController || !username || username != gameController.gameState.adminUser) {
+            return;
+        }
+        gameController.startGame();
     });
 });
 
@@ -177,6 +212,7 @@ app.get('/playersInfo', (req, res) => {
         res.send("no username");
     } else {
         const info = users.get(req.query.socketID);
+
         res.json(info.gameController.playerInformation(info.username));
         // return info.gameController.playerInformation(info.username);
     }
@@ -226,7 +262,13 @@ app.get('/joinGame', (req, res) => {
         return;
     }
     // join this game
-    socket.emit('joinGame', guess);
+    const info = users.get(socketID);
+    if (!gameController || !info) {
+        return;
+    }
+    info.gameController = gameController;
+    socket.join(guess);
+    info.gameController.addPlayer(info.username, socketID);
     res.json({
         success: true
     });

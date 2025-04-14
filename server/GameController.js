@@ -8,9 +8,7 @@ class GameController {
     TURN = 2;
     RIVER = 3;
     SHOWDOWN = 4;
-    BLIND = 100
-    // whether or not the game is going or not (starts when admin clicks start)
-    gameStarted = false;
+    BLIND = 100;
     // true if we are playing heads up (different postflop and dealing rules)
     headsUp = false;
     // maps username -> socket id
@@ -38,7 +36,6 @@ class GameController {
     constructor(roomName, socketIO, adminUser) {
         this.socketIO = socketIO;
         // add initial player to the list
-        this.players.push(new PlayerInfo(adminUser, 10000, 0, true));
         this.gameState = new GameState(this.players, roomName, adminUser);
     }
     // set blinds, deal cards, give action to first player
@@ -98,6 +95,7 @@ class GameController {
                 'Kc', 'Kd', 'Kh', 'Ks',
                 'Ac', 'Ad', 'Ah', 'As'
             ];
+            console.log(this.players);
             for (const player of this.activePlayers) {
                 const cardArr = [];
                 cardArr.push(this.randCard());
@@ -132,8 +130,7 @@ class GameController {
         this.turn = this.PREFLOP;
         this.gameState.commCards = [];
         this.updatePlayers();
-        if (this.activePlayers.length > 2) {
-            this.gameState.gameStarted = true;
+        if (this.activePlayers.length > 1) {
             if (this.activePlayers.length == 2) {
                 this.headsUp = true;
             }
@@ -180,7 +177,7 @@ class GameController {
             player.chips += player.betSize;
             player.betSize = 0;
             // player loses
-            if (player.chips == 0) {
+            if (player.chips <= 0) {
                 this.removePlayer(player.name);
             }
         }
@@ -267,6 +264,7 @@ class GameController {
         this.updatePlayers();
     }
     callCheck(username) {
+        console.log(this.players)
         const player = this.players[this.playerSeat(username)];
         // call
         if (this.gameState.betSize > 0) {
@@ -402,6 +400,22 @@ class GameController {
         this.cards.delete(username);
         this.updatePlayers();
     }
+    // player left before game started
+    deletePlayer(username) {
+        this.players.splice(this.playerSeat(username), 1);
+        this.ids.delete(username);
+        this.updatePlayers();
+    }
+    // add player to the sitngo
+    addPlayer(username, socketID) {
+        // player can only spectate
+        if (this.gameState.gameStarted || this.players.length >= 9) {
+            return;
+        }
+        this.ids.set(username, socketID);
+        this.players.push(new PlayerInfo(username, 10000, this.players.length));
+        this.updatePlayers();
+    }
     // resets a seat when a player leaves, may leave bet out there
     reset(seatnum) {
         if (seatnum == -1) return;
@@ -411,7 +425,7 @@ class GameController {
     }
     // returns which seat player is at, or -1 if they arent sitting
     playerSeat(username) {
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < this.players.length; i++) {
             if (username == this.players[i].name) {
                 return i;
             }
@@ -453,17 +467,6 @@ class GameController {
             }
         }
     }
-    // sit the player at the table
-    // playerSit(playerInfo, socketID) {
-    //     this.ids.set(playerInfo.name, socketID);
-    //     const seat = playerInfo.seatnum;
-    //     // player already sitting here
-    //     if (this.players[seat].name) {
-    //         return;
-    //     }
-    //     this.players[seat] = playerInfo;
-    //     this.updatePlayers();
-    // }
     // player comes back 
     socketChange(username, newSocketID) {
         this.ids.set(username, newSocketID);
@@ -480,7 +483,7 @@ class GameController {
             const player = this.players[seat];
             heroSitting = true;
             heroSittingOut = player.sittingOut;
-            cards = player.cards;
+            cards = player.holeCards;
         }
         // gameState
         return {
@@ -490,6 +493,41 @@ class GameController {
             cards: cards
         }
     }
+    // starts the sitngo
+    startGame() {
+        // pops and returns a random element from arr
+        const popRandom = (arr) => {
+            return arr.splice(this.randRange(arr.length), 1)[0];
+        }
+        while (this.players.length <= 9) {
+            this.players.push(new PlayerInfo('', 0, 0));
+        }
+        // randomly shuffle the players around
+        const shuffledPlayers = [];
+        for (let i = 0; i < 9; i++) {
+            shuffledPlayers.push(popRandom(this.players));
+        }
+        // set players == shuffledPlayers
+        for (let i = 0; i < 9; i++) {
+            this.players.push(shuffledPlayers[i]);
+            this.players[i].seatnum = i;
+        }
+        this.gameState.gameStarted = true;
+        this.startStep();
+        this.updatePlayers();
+    }
+    // sit the player at the table
+    // playerSit(playerInfo, socketID) {
+    //     this.ids.set(playerInfo.name, socketID);
+    //     const seat = playerInfo.seatnum;
+    //     // player already sitting here
+    //     if (this.players[seat].name) {
+    //         return;
+    //     }
+    //     this.players[seat] = playerInfo;
+    //     this.updatePlayers();
+    // }
+
     // schedule player for deletion
     // scheduleForDeletion(username) {
     //     const seat = this.playerSeat(username);

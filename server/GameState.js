@@ -1,6 +1,6 @@
 // const PlayerInfo = require('./PlayerInfo');
 
-// state of the game, passed to all clients whenver there is a UI update
+// state of the game, passed to all clients whenever there is a UI update
 class GameState {
     players;
     // highest bet on the table
@@ -10,6 +10,7 @@ class GameState {
     pot = 0;
     commCards = [];
     gameStarted = false;
+    // roomName == code
     constructor(players, roomName, adminUser) {
         this.players = players;
         this.roomName = roomName;

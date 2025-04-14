@@ -5,7 +5,7 @@ import './Table.css';
 import button from '../Images/crown.png';
 import sparkle from '../Images/confetti.gif';
 
-// state of the game, passed to all clients whenver there is a UI update
+// state of the game, passed to all clients whenever there is a UI update
 class GameState {
     players;
     // highest bet on the table
@@ -15,6 +15,7 @@ class GameState {
     pot = 0;
     commCards = [];
     gameStarted = false;
+    // roomName == code
     constructor(players, roomName, adminUser) {
         this.players = players;
         this.roomName = roomName;
@@ -67,6 +68,8 @@ export default function Table({ socket }) {
             const query = `http://localhost:4000/playersInfo?socketID=${socket.id}`;
             const data = await fetch(query);
             const dataJSON = await data.json();
+            console.log(dataJSON);
+            console.log('initialized state', dataJSON.cards);
             setGameState(dataJSON.gameState);
             setSitting(dataJSON.heroSitting);
             setSittingOut(dataJSON.heroSittingOut);
@@ -92,6 +95,7 @@ export default function Table({ socket }) {
         });
         // for updating hero's cards
         socket.on('updateCards', (cardsList) => {
+            console.log('updating cards', cardsList)
             setCards(cardsList);
         });
         // for updating hero's sitting status
@@ -120,18 +124,18 @@ export default function Table({ socket }) {
         socket.emit('sitOut');
     }
     function startGame() {
-
+        socket.emit('startGame');
     }
-    function BrexitButton() {
+    function BrexitButton({color}) {
         const brexit = () => {
-            if (!window.confirm('Are you sure you want to brexit? Doing so will delete all Progress!')) {
+            if (!window.confirm('Are you sure you want to brexit? Doing so will permantently delete you from the game!')) {
                     return;
             }
             socket.emit('brexit');
             navigate('/');
         }
         return (
-            <button className='sitOutButton' onClick={brexit}style={{top:'3%'}}>
+            <button className='sitOutButton' onClick={brexit}style={{top:'3%', backgroundColor: color}}>
                 Brexit
             </button>
         )
@@ -176,15 +180,18 @@ export default function Table({ socket }) {
     }
     // pre start / loading screen
     return (
-        <div className='tableBackground' style={{backgroundColor: 'rgb(165, 186, 187)'}} onClick={startGame}>
+        <div className='tableBackground' style={{backgroundColor: 'rgb(165, 186, 187)'}}>
             <div className='preStart'>
-                <h2>Waiting to start...</h2>
-                <ol>{gameState.players.map(player => (<li>hello</li>))}</ol>
+                <h2>Share this code: {gameState.roomName}</h2>
+                <h2>Waiting for "{gameState.adminUser}" to start</h2>
+                <ol>{gameState.players.map(player => (<li>{player.name}</li>))}</ol>
                 {gameState.adminUser == user &&
-                <button className='sitOutButton' style={{backgroundColor: 'rgb(37, 211, 69)'}}>
+                <button className='sitOutButton' 
+                    style={{backgroundColor: 'rgb(37, 211, 69)'}} onClick={startGame}>
                     start
                 </button>}
             </div>
+            {<BrexitButton color='rgb(190, 120, 215)'/>}
         </div>
     )
 }
@@ -301,6 +308,10 @@ function ActionButtons({socket, heroInfo, betSize, minRaise}) {
 // box that holds info about player
 function PlayerBox({playerInfo, location, socket, heroUsername, heroCards, heroSitting}) {
     const [playerSitting, setSitting] = useState(false);
+    console.log(playerInfo);
+    console.log(location);
+    console.log(heroUsername);
+    console.log(heroCards);
     // let player_sitting = false;
     // tell socket that a new player wants to join
     // function registerPlayer() {
