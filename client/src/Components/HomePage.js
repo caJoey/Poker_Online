@@ -4,8 +4,7 @@ import "./HomePage.css";
 import "./Table.css";
 import create from '../Images/create.png';
 import join from '../Images/join.png';
-
-
+import rejoin from '../Images/reconnect.png';
 
 export default function HomePage ({ socket }) {
     const navigate = useNavigate();
@@ -13,20 +12,19 @@ export default function HomePage ({ socket }) {
     const [progress, setProgress] = useState(0);
     const MIN_LEN = 1;
     const MAX_LEN = 10;
-    useEffect(() => {
-        async function tryReconnect() {
-            console.log(`socket : ${socket}`)
-            console.log(`socket.id : ${socket.id}`)
-            const query = `http://localhost:4000/reconnectCheck?socketID=${socket.id}&oldId=${localStorage.getItem('id')}`;
-            const data = await fetch(query);
-            const dataJSON = await data.json();
-            localStorage.setItem('id', socket.id);
-            if (dataJSON.alreadyConnected) {
-                navigate('/play');
-            } 
-        }
-        socket.on('connect', tryReconnect);
-    }, [socket, navigate]);
+    // deprecated: moved to reconnect()
+    // useEffect(() => {
+    //     async function tryReconnect() {
+    //         const query = `http://localhost:4000/reconnectCheck?socketID=${socket.id}&oldId=${localStorage.getItem('id')}`;
+    //         const data = await fetch(query);
+    //         const dataJSON = await data.json();
+    //         localStorage.setItem('id', socket.id);
+    //         if (dataJSON.alreadyConnected) {
+    //             navigate('/play');
+    //         } 
+    //     }
+    //     socket.on('connect', tryReconnect);
+    // }, [socket, navigate]);
 
     function onSubmit(event) {
         // prevent page from refreshing
@@ -69,7 +67,7 @@ export default function HomePage ({ socket }) {
 
 function CreateOrJoin({setProgress, socket}) {
     const navigate = useNavigate();
-    async function enterCode() {
+    async function joinGame() {
         const code = prompt('Enter the game code');
         if (code == null || code == "") {
             return;
@@ -78,12 +76,29 @@ function CreateOrJoin({setProgress, socket}) {
         const data = await fetch(query);
         const dataJSON = await data.json();
         if (dataJSON.success) {
+            localStorage.setItem('id', socket.id);
             navigate('/play');
         }
     }
     function createGame() {
+        localStorage.setItem('id', socket.id);
         socket.emit('createGame');
         navigate('/play');
+    }
+    // try to reconnect to a previous game with localStorage
+    async function reconnect() {
+        const oldID = localStorage.getItem('id');
+        if (oldID) {
+            const query = `http://localhost:4000/reconnectCheck?socketID=${socket.id}&oldId=${oldID}`;
+            const data = await fetch(query);
+            const dataJSON = await data.json();
+            if (dataJSON.alreadyConnected) {
+                localStorage.setItem('id', socket.id);
+                navigate('/play');
+            } else {
+                alert('No game found to reconect to!');
+            }
+        }
     }
     return (
         <div className='createOrJoin'>
@@ -95,9 +110,13 @@ function CreateOrJoin({setProgress, socket}) {
                 <h2>Create</h2>
                 <img src={create}></img>
             </button>
-            <button className='choiceButton' onClick={enterCode}>
+            <button className='choiceButton' onClick={joinGame}>
                 <h2>Join</h2>
                 <img src={join}></img>
+            </button>
+            <button className='choiceButton' onClick={reconnect}>
+                <h2>Reconnect</h2>
+                <img src={rejoin}></img>
             </button>
         </div>
     )

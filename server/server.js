@@ -65,6 +65,10 @@ socketIO.on('connection', (socket) => {
         if (!username) {
             return;
         }
+        // user has a game to reconnect to, dont override their gameController
+        if (users.has(socket.id)) {
+            return;
+        }
         users.set(socket.id, new UserInfo(username, null));
         // join room
         // socket.join(ROOM);
@@ -91,12 +95,9 @@ socketIO.on('connection', (socket) => {
     // socket.on('joinGame', (code) => {
     //     const gameController = codeToGame.get(code);
     //     const info = users.get(socket.id);
-    //     console.log(`gameController ${gameController}`);
-    //     console.log(`info ${info}`);
     //     if (!gameController || !info) {
     //         return;
     //     }
-    //     console.log('here68');
     //     info.gameController = gameController;
     //     socket.join(code);
     //     info.gameController.addPlayer(info.username, socket.id);
@@ -138,17 +139,18 @@ socketIO.on('connection', (socket) => {
         const res = info.gameController.sitOut(info.username);
         socket.emit('updateHeroSittingOut', res);
     });
-    // exit table and return to home
+    // exit table and return to home 
     socket.on('brexit', () =>  {
         // just sit player out of they are participating
         sitUsOut();
         const info = users.get(socket.id);
-        if (!info) {
+        if (!info || !info.gameController) {
             return;
         }
         // exiting when player isnt at the table, full delete
-        // TODO: check for admin transfer, make this look less ugly
         const gameController = info.gameController;
+        // remove from previous room
+        socket.leave(gameController.gameState.roomName);
         const username = info.username;
         if (!gameController.gameState.gameStarted
             || gameController.playerSeat(username) == -1) {
@@ -158,7 +160,6 @@ socketIO.on('connection', (socket) => {
             if (gameController.players.length >= 1 && username == gameController.gameState.adminUser) {
                 gameController.gameState.adminUser = gameController.players[0].name;
                 gameController.updatePlayers();
-                console.log(gameController.players);
             }
             users.delete(socket.id);
         }
@@ -219,11 +220,6 @@ app.get('/playersInfo', (req, res) => {
 });
 // return true if player was at a table when they left
 app.get('/reconnectCheck', (req, res) => {
-    // TODO: remove (vibe testing purposes)
-    res.json({
-        alreadyConnected: false
-    });
-    return;
     if (Object.entries(req.query).length == 0 || req.query.socketID == undefined) {
         res.send("no socketID specified");
     } else {
@@ -231,14 +227,14 @@ app.get('/reconnectCheck', (req, res) => {
         const oldId = req.query.oldId;
         const socket = socketIO.sockets.sockets.get(newId);
         // player is returning
-        if (oldId && users.has(oldId)) {
+        if (oldId && users.has(oldId) && users.get(oldId).gameController) {
             // change the socket over to new one
             const info = users.get(oldId);
-            // const info = users.get(req.query.socketID);
             info.gameController.socketChange(info.username, newId);
-            users.set(newId, info);
+            // join new room
+            socket.join(info.gameController.gameState.roomName);
             users.delete(oldId);
-            socket.join(ROOM);
+            users.set(newId, info);
             res.json({
                 alreadyConnected: true
             });
@@ -255,17 +251,15 @@ app.get('/joinGame', (req, res) => {
     const socket = socketIO.sockets.sockets.get(socketID);
     const guess = req.query.guess;
     const gameController = codeToGame.get(guess);
-    if (!gameController) {
+    const info = users.get(socketID);
+    if (!gameController || !info ||
+        (gameController.ids.has(info.username))) {
         res.json({
             success: false
         });
         return;
     }
     // join this game
-    const info = users.get(socketID);
-    if (!gameController || !info) {
-        return;
-    }
     info.gameController = gameController;
     socket.join(guess);
     info.gameController.addPlayer(info.username, socketID);

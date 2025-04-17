@@ -16,6 +16,8 @@ class GameController {
     // maps username -> hole cards
     cards = new Map();
     players = [];
+    // ordering of players as they lose(1st to last players)
+    losers = [];
     activePlayers = [];
     activeCards = [];
     // last known seats for important positions
@@ -36,7 +38,7 @@ class GameController {
     constructor(roomName, socketIO, adminUser) {
         this.socketIO = socketIO;
         // add initial player to the list
-        this.gameState = new GameState(this.players, roomName, adminUser);
+        this.gameState = new GameState(this.players, roomName, adminUser, this.losers);
     }
     // set blinds, deal cards, give action to first player
     startStep() {
@@ -95,7 +97,6 @@ class GameController {
                 'Kc', 'Kd', 'Kh', 'Ks',
                 'Ac', 'Ad', 'Ah', 'As'
             ];
-            console.log(this.players);
             for (const player of this.activePlayers) {
                 const cardArr = [];
                 cardArr.push(this.randCard());
@@ -121,7 +122,7 @@ class GameController {
             player.holeCards = [];
             player.maxWin = Infinity;
             player.winner = false;
-            if (player.name && !player.sittingOut) {
+            if (player.name) {
                 this.activePlayers.push(player);
             }
         }
@@ -140,6 +141,12 @@ class GameController {
             dealCards();
             // put action onto first to act
             this.players[this.nextLeft(this.BBSeat)].myTurn = true;
+            this.updatePlayers();
+        } else if (this.activePlayers.length == 1) { // someone won
+            const winner = this.activePlayers[0].name;
+            this.gameState.gameWinner = winner;
+            this.losers.unshift(winner);
+            this.gameState.gameStarted = false;
             this.updatePlayers();
         }
     }
@@ -172,14 +179,28 @@ class GameController {
         this.distributeWinnings(winningOrder);
         this.updatePlayers();
         await this.sleep(3000);
+        const addToLosers = [];
         // add players chips to their stack (visual purposes)
         for (const player of this.activePlayers) {
             player.chips += player.betSize;
             player.betSize = 0;
             // player loses
             if (player.chips <= 0) {
+                addToLosers.push(player.name);
                 this.removePlayer(player.name);
             }
+        }
+        let nextLosers = '';
+        for (let i = 0; i < addToLosers.length; i++) {
+            const name = addToLosers[i];
+            if (i == addToLosers.length-1) {
+                nextLosers += name
+            } else {
+                nextLosers += name + ', '
+            }
+        }
+        if (nextLosers) {
+            this.losers.unshift(nextLosers);
         }
         this.updatePlayers();
         await this.sleep(3000);
@@ -264,7 +285,6 @@ class GameController {
         this.updatePlayers();
     }
     callCheck(username) {
-        console.log(this.players)
         const player = this.players[this.playerSeat(username)];
         // call
         if (this.gameState.betSize > 0) {
@@ -317,7 +337,7 @@ class GameController {
                 // give highest bettor spare chips
                 let secondHighestBet = 0;
                 for (const player of this.activePlayers) {
-                    if (player.betSize > secondHighestBet && player.betSize < this.gameState.betSize) {
+                    if (player.betSize >= secondHighestBet && player.betSize <= this.gameState.betSize) {
                         secondHighestBet = player.betSize;
                     }
                 }
@@ -393,9 +413,12 @@ class GameController {
         }
         return notAllIn <= 1;
     }
-    // player leaving table
+    // player lost their chips
     removePlayer(username) {
         this.reset(this.playerSeat(username));
+        // remove the sitting out button
+        const id = this.ids.get(username);
+        this.socketIO.to(id).emit('updateHeroSitting', false);
         this.ids.delete(username);
         this.cards.delete(username);
         this.updatePlayers();
@@ -470,7 +493,6 @@ class GameController {
     // player comes back 
     socketChange(username, newSocketID) {
         this.ids.set(username, newSocketID);
-        console.log(this.ids);
         this.updatePlayers();
     }
     // returns info about player to initialize their frontend
@@ -483,7 +505,9 @@ class GameController {
             const player = this.players[seat];
             heroSitting = true;
             heroSittingOut = player.sittingOut;
-            cards = player.holeCards;
+            if (this.cards.has(player.name)) {
+                cards = this.cards.get(player.name);
+            }
         }
         // gameState
         return {
@@ -499,7 +523,7 @@ class GameController {
         const popRandom = (arr) => {
             return arr.splice(this.randRange(arr.length), 1)[0];
         }
-        while (this.players.length <= 9) {
+        while (this.players.length < 9) {
             this.players.push(new PlayerInfo('', 0, 0));
         }
         // randomly shuffle the players around
@@ -512,6 +536,7 @@ class GameController {
             this.players.push(shuffledPlayers[i]);
             this.players[i].seatnum = i;
         }
+
         this.gameState.gameStarted = true;
         this.startStep();
         this.updatePlayers();

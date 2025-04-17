@@ -242,3 +242,17 @@ body,
 .preStart li {
   font-size: 150%;
 }
+
+.trophy {
+  /* height will be auto */
+  margin: 5%;
+  width: 30%;
+  aspect-ratio: 1/1;
+}
+
+.joinCode {
+  position: fixed;
+  right: 2%;
+  top: 2%;
+  font-size: 2vmin;
+}

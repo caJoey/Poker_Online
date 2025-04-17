@@ -4,6 +4,7 @@ import './Table.css';
 // import plus from '../Images/plus.png';
 import button from '../Images/crown.png';
 import sparkle from '../Images/confetti.gif';
+import trophy from '../Images/trophy.png';
 
 // state of the game, passed to all clients whenever there is a UI update
 class GameState {
@@ -56,6 +57,19 @@ export default function Table({ socket }) {
     const [cards, setCards] = useState([]); // hero's hole cards
     const navigate = useNavigate();
 
+    // initialize gameState and info about hero
+    async function initializeState() {
+        console.log('initializeState');
+        const query = `http://localhost:4000/playersInfo?socketID=${socket.id}`;
+        const data = await fetch(query);
+        const dataJSON = await data.json();
+        console.log(dataJSON);
+        setGameState(dataJSON.gameState);
+        setSitting(dataJSON.heroSitting);
+        setSittingOut(dataJSON.heroSittingOut);
+        setCards(dataJSON.cards);
+    }
+
     useEffect(() => {
         async function getUsername() {
             const query = `http://localhost:4000/username?socketID=${socket.id}`;
@@ -63,22 +77,20 @@ export default function Table({ socket }) {
             const dataJSON = await data.json();
             setUser(dataJSON.username);
         }
-        // initialize gameState and info about hero (for reconnection)
-        async function initializeState() {
-            const query = `http://localhost:4000/playersInfo?socketID=${socket.id}`;
-            const data = await fetch(query);
-            const dataJSON = await data.json();
-            console.log(dataJSON);
-            console.log('initialized state', dataJSON.cards);
-            setGameState(dataJSON.gameState);
-            setSitting(dataJSON.heroSitting);
-            setSittingOut(dataJSON.heroSittingOut);
-            setCards(dataJSON.cards);
+        // ensures player sits out if they press back arrow
+        function backArrow() {
+            socket.emit('brexit');
         }
         // get username of hero and initialize stuff on table
         getUsername();
+        console.log("MOUNTED");
         initializeState();
-    }, [socket.id]); // only runs once
+        window.addEventListener('popstate', backArrow);
+        return () => {
+            window.removeEventListener('popstate', backArrow);
+            console.log("UNMOUNTED");
+        }
+    }, []); // runs once when component is mounted
 
     useEffect(() => {
         // initialize state for when players join for the first time
@@ -95,7 +107,6 @@ export default function Table({ socket }) {
         });
         // for updating hero's cards
         socket.on('updateCards', (cardsList) => {
-            console.log('updating cards', cardsList)
             setCards(cardsList);
         });
         // for updating hero's sitting status
@@ -106,6 +117,10 @@ export default function Table({ socket }) {
         socket.on('updateHeroSittingOut', (isSittingOut) => {
             setSittingOut(isSittingOut);
         });
+        // initialize state for reconnection
+        // socket.on('initializeState', () => {
+        //     initializeState();
+        // });
     }, [socket]);
 
     let actionButtons;
@@ -128,7 +143,7 @@ export default function Table({ socket }) {
     }
     function BrexitButton({color}) {
         const brexit = () => {
-            if (!window.confirm('Are you sure you want to brexit? Doing so will permantently delete you from the game!')) {
+            if (!window.confirm('Are you sure you want to brexit? Doing so will permanently delete you from the game!')) {
                     return;
             }
             socket.emit('brexit');
@@ -158,6 +173,7 @@ export default function Table({ socket }) {
         <PlayerBox playerInfo={player} location={locations[player.seatnum]}
         socket={socket} heroUsername={user} heroCards={cards} heroSitting={heroSitting}/>
     );
+    console.log(`gameState.gameStarted ${gameState.gameStarted}`);
     if (gameState.gameStarted) {
         return (
             <div className='everything'>
@@ -175,8 +191,21 @@ export default function Table({ socket }) {
                 {itsMyTurn() && actionButtons}
                 {heroSitting && <SittingOutButton/>}
                 {<BrexitButton/>}
+                <h2 className='joinCode'>Spectator code: {gameState.roomName}</h2>
             </div>
         )   
+    } else if (gameState.gameWinner) {
+        return (
+            <div className='tableBackground' style={{backgroundColor: 'rgb(165, 186, 187)'}}>
+                <div className='preStart'>
+                    <img src={trophy} className='trophy'></img>
+                    <h2>Congrats to winner {gameState.gameWinner}</h2>
+                    <h2>Final Rankings:</h2>
+                    <ol>{gameState.losers.map(place => (<li>{place}</li>))}</ol>
+                </div>
+                {<BrexitButton color='rgb(190, 120, 215)'/>}
+            </div>
+        )
     }
     // pre start / loading screen
     return (
@@ -196,8 +225,6 @@ export default function Table({ socket }) {
     )
 }
 
-
-
 // cards in middle
 function CommunityCards({cards}) {
     // cards = ['2c','6h','10s','Jd','Ah']
@@ -207,7 +234,6 @@ function CommunityCards({cards}) {
         <img className='commCard' src={require(`../Images/Cards/${card}.jpg`)}
         style={{top: '32.5%', left: lefts[index++]}}/>
     );
-    console.log(index);
     return (<>{commCards}</>)
 }
 
@@ -220,9 +246,7 @@ function ActionButtons({socket, heroInfo, betSize, minRaise}) {
             const dataJSON = await data.json();
             setHideRaise(dataJSON.everyoneExceptOnePersonIsAllIn);
         }
-        console.log('running getAllIn in actionButtons...')
         getAllIn();
-        console.log(`hideRaise ${hideRaise}`);
     }, [socket.id]); // only runs once
     const [raiseSlider, setRaiseSlider] =
         useState(Math.min(heroInfo.chips + heroInfo.betSize, minRaise + betSize));
@@ -308,10 +332,6 @@ function ActionButtons({socket, heroInfo, betSize, minRaise}) {
 // box that holds info about player
 function PlayerBox({playerInfo, location, socket, heroUsername, heroCards, heroSitting}) {
     const [playerSitting, setSitting] = useState(false);
-    console.log(playerInfo);
-    console.log(location);
-    console.log(heroUsername);
-    console.log(heroCards);
     // let player_sitting = false;
     // tell socket that a new player wants to join
     // function registerPlayer() {

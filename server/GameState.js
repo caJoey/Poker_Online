@@ -10,11 +10,14 @@ class GameState {
     pot = 0;
     commCards = [];
     gameStarted = false;
+    // username of the winning player
+    gameWinner = '';
     // roomName == code
-    constructor(players, roomName, adminUser) {
+    constructor(players, roomName, adminUser, losers) {
         this.players = players;
         this.roomName = roomName;
         this.adminUser = adminUser;
+        this.losers = losers;
     }
 }
 
