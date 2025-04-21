@@ -1,10 +1,10 @@
 const express = require('express');
 const app = express();
-const PORT =  process.env.PORT || 4000;
+const PORT =  8080;
 const ROOM = 'room';
 // wrap express app in an HTTP server which Socket.IO uses
 const http = require('http').Server(app);
-// enables cross-origin resource sharing, so 3000 <-> 4000
+// enables cross-origin resource sharing, so 3000 <-> 8080
 const cors = require('cors');
 // allows comms between client and server
 app.use(cors());
@@ -266,8 +266,8 @@ app.get('/joinGame', (req, res) => {
 });
 // stolen from https://www.youtube.com/watch?v=INVodizZQCY
 // breaks developmen
-console.log('process.env.NODE_ENV == production')
-console.log(process.env.NODE_ENV == 'production')
+console.log('process.env.NODE_ENV == 1')
+console.log(process.env.NODE_ENV == 1)
 console.log('process.env.NODE_ENV')
 console.log(process.env.NODE_ENV)
 console.log('process.env.SOCKET_URL')
