@@ -13,11 +13,12 @@ class GameState {
     // username of the winning player
     gameWinner = '';
     // roomName == code
-    constructor(players, roomName, adminUser, losers) {
+    constructor(players, roomName, adminUser, losers, timerInfo) {
         this.players = players;
         this.roomName = roomName;
         this.adminUser = adminUser;
         this.losers = losers;
+        this.timerInfo = timerInfo;
     }
 }
 

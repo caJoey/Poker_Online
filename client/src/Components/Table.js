@@ -5,6 +5,15 @@ import './Table.css';
 import button from '../Images/crown.png';
 import sparkle from '../Images/confetti.gif';
 import trophy from '../Images/trophy.png';
+import betSound from '../Sounds/bet.mp3'
+import checkSound from '../Sounds/check.mp3'
+import foldSound from '../Sounds/fold.mp3'
+import audioOn from '../Images/audioOn.png';
+import audioOff from '../Images/audioOff.png';
+
+const BET = new Audio(betSound);
+const CHECK = new Audio(checkSound);
+const FOLD = new Audio(foldSound);
 
 // state of the game, passed to all clients whenever there is a UI update
 class GameState {
@@ -55,22 +64,21 @@ export default function Table({ socket }) {
     // username
     const [user, setUser] = useState("");
     const [cards, setCards] = useState([]); // hero's hole cards
+    // const [timerInfo, setTimerInfo] = useState({level:0, blind:0, minsLeft:0});
+    const [muted, setMuted] = useState(false);
     const navigate = useNavigate();
 
-    // initialize gameState and info about hero
-    async function initializeState() {
-        console.log('initializeState');
-        const query = `http://localhost:4000/playersInfo?socketID=${socket.id}`;
-        const data = await fetch(query);
-        const dataJSON = await data.json();
-        console.log(dataJSON);
-        setGameState(dataJSON.gameState);
-        setSitting(dataJSON.heroSitting);
-        setSittingOut(dataJSON.heroSittingOut);
-        setCards(dataJSON.cards);
-    }
-
     useEffect(() => {
+        // initialize gameState and info about hero
+        async function initializeState() {
+            const query = `http://localhost:4000/playersInfo?socketID=${socket.id}`;
+            const data = await fetch(query);
+            const dataJSON = await data.json();
+            setGameState(dataJSON.gameState);
+            setSitting(dataJSON.heroSitting);
+            setSittingOut(dataJSON.heroSittingOut);
+            setCards(dataJSON.cards);
+        }
         async function getUsername() {
             const query = `http://localhost:4000/username?socketID=${socket.id}`;
             const data = await fetch(query);
@@ -83,27 +91,17 @@ export default function Table({ socket }) {
         }
         // get username of hero and initialize stuff on table
         getUsername();
-        console.log("MOUNTED");
         initializeState();
         window.addEventListener('popstate', backArrow);
         return () => {
             window.removeEventListener('popstate', backArrow);
-            console.log("UNMOUNTED");
         }
-    }, []); // runs once when component is mounted
+    }, [socket]); // runs not that much
 
     useEffect(() => {
-        // initialize state for when players join for the first time
-        // socket.on('initializeState', (info) => {
-        //     setGameState(info.gameState);
-        //     setSitting(info.heroSitting);
-        //     setSittingOut(info.heroSittingOut);
-        //     setCards(info.cards);
-        // });
         // every time table gets updated, update table with updated info
         socket.on('updateTable', (gameState) => {
             setGameState(gameState);
-            // setPlayers();
         });
         // for updating hero's cards
         socket.on('updateCards', (cardsList) => {
@@ -117,12 +115,35 @@ export default function Table({ socket }) {
         socket.on('updateHeroSittingOut', (isSittingOut) => {
             setSittingOut(isSittingOut);
         });
-        // initialize state for reconnection
-        // socket.on('initializeState', () => {
-        //     initializeState();
+        // update blind timer
+        // socket.on('updateTimer', (level, blind, minsLeft) => {
+        //     setTimerInfo({level:level, blind:blind, minsLeft:minsLeft});
         // });
+        return () => {
+            socket.off('updateTable');
+            socket.off('updateCards');
+            socket.off('updateHeroSitting');
+            socket.off('updateHeroSittingOut');
+            socket.off('updateTimer');
+        }
     }, [socket]);
-
+    useEffect(() => {
+        socket.on('playSound', (name) => {
+            if (muted == true) {
+                return;
+            }
+            if (name == 'bet') {
+                BET.play();
+            } else if (name == 'check') {
+                CHECK.play();
+            } else {
+                FOLD.play();
+            }
+        });
+        return () => {
+            socket.off('playSound');
+        }
+    }, [socket, muted]);
     let actionButtons;
     // if its my turn, return true and assign action buttons, else false
     function itsMyTurn() {
@@ -143,7 +164,7 @@ export default function Table({ socket }) {
     }
     function BrexitButton({color}) {
         const brexit = () => {
-            if (!window.confirm('Are you sure you want to brexit? Doing so will permanently delete you from the game!')) {
+            if (!window.confirm('Are you sure you want to brexit? Doing so may permanently delete you from the game!')) {
                     return;
             }
             socket.emit('brexit');
@@ -173,7 +194,6 @@ export default function Table({ socket }) {
         <PlayerBox playerInfo={player} location={locations[player.seatnum]}
         socket={socket} heroUsername={user} heroCards={cards} heroSitting={heroSitting}/>
     );
-    console.log(`gameState.gameStarted ${gameState.gameStarted}`);
     if (gameState.gameStarted) {
         return (
             <div className='everything'>
@@ -190,8 +210,15 @@ export default function Table({ socket }) {
                 </div>
                 {itsMyTurn() && actionButtons}
                 {heroSitting && <SittingOutButton/>}
-                {<BrexitButton/>}
-                <h2 className='joinCode'>Spectator code: {gameState.roomName}</h2>
+                <BrexitButton/>
+                <div className='topRight'>
+                    <h2>{gameState.timerInfo.minsLeft} minutes left at level {gameState.timerInfo.level} | 
+                        Blinds {gameState.timerInfo.blind/2} / {gameState.timerInfo.blind}
+                    </h2>
+                    <h2>Spectator code: {gameState.roomName}</h2>
+                    {!muted && <img className='muteButton' src={audioOn} onClick={() => {setMuted(true)}}></img>}
+                    {muted && <img className='muteButton' src={audioOff} onClick={() => {setMuted(false)}}></img>}
+                </div>
             </div>
         )   
     } else if (gameState.gameWinner) {
@@ -239,6 +266,9 @@ function CommunityCards({cards}) {
 
 function ActionButtons({socket, heroInfo, betSize, minRaise}) {
     const [hideRaise, setHideRaise] = useState(false);
+    const [raiseSlider, setRaiseSlider] =
+        useState(Math.min(heroInfo.chips + heroInfo.betSize, minRaise + betSize));
+    const [call, setCall] = useState(Math.min(betSize - heroInfo.betSize, heroInfo.chips));
     useEffect(() => {
         async function getAllIn() {
             const query = `http://localhost:4000/everyoneExceptOnePersonIsAllIn?socketID=${socket.id}`;
@@ -248,9 +278,9 @@ function ActionButtons({socket, heroInfo, betSize, minRaise}) {
         }
         getAllIn();
     }, [socket.id]); // only runs once
-    const [raiseSlider, setRaiseSlider] =
-        useState(Math.min(heroInfo.chips + heroInfo.betSize, minRaise + betSize));
-    const [call, setCall] = useState(Math.min(betSize - heroInfo.betSize, heroInfo.chips));
+    useEffect(() => {
+        setRaiseSlider(Math.min(heroInfo.chips + heroInfo.betSize, minRaise + betSize));
+    }, [minRaise, betSize, heroInfo]);
 
     const handleSlider = (event) => {
         let betVal = Number(event.target.value);

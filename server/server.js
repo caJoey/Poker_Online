@@ -26,8 +26,8 @@ class UserInfo {
     }
 }
 
-// GameControllers for each game
-// const rooms = [];
+// maps code/room name -> set of socketIDs that are here
+const rooms = new Map();
 // maps socket id -> {username, GameController}
 const users = new Map();
 // maps code/room name -> GameController
@@ -36,6 +36,18 @@ const codeToGame = new Map();
 // picks random number between 0 and end exclusive
 function randRange(end) {
     return Math.floor(Math.random() * end);
+}
+
+function deleteGame(roomID) {
+    if (rooms.has(roomID)) {
+        rooms.delete(roomID);
+    }
+    for (const [id, ob] of users) {
+        if (ob.gameController && ob.gameController.roomName == roomID) {
+            users.delete(id);
+        }
+    }
+    console.log(`deleting ${roomID}`);
 }
 
 // listens for new websocket connection, socket is connected client
@@ -60,18 +72,44 @@ socketIO.on('connection', (socket) => {
             info.gameController.sitOut(info.username);
         }
     }
-    // register new user
-    socket.on('newUser', (username) => {
-        if (!username) {
+    // safely exit the game while allowing reconnect
+    function brexit() {
+        // just sit player out if they are participating
+        sitUsOut();
+        const info = users.get(socket.id);
+        if (!info || !info.gameController) {
             return;
         }
-        // user has a game to reconnect to, dont override their gameController
-        if (users.has(socket.id)) {
+        // exiting when player isnt at the table, full delete
+        const gameController = info.gameController;
+        // remove from previous room
+        socket.leave(gameController.gameState.roomName);
+        const username = info.username;
+        // game hasnt started, remove player from game
+        // this auto cleans
+        if (!gameController.gameState.gameStarted
+            || gameController.playerSeat(username) == -1) {
+            info.gameController.deletePlayer(username);
+            // check for admin transfer
+            if (gameController.players.length >= 1 && username == gameController.gameState.adminUser) {
+                gameController.gameState.adminUser = gameController.players[0].name;
+                gameController.updatePlayers();
+            }
+            users.delete(socket.id);
+            console.log(gameController.players.length);
+            // check for empty prestart array
+            if (gameController.players.length == 0) {
+                deleteGame(gameController.roomName);
+            }
+        }
+    }
+    // register new user
+    socket.on('newUser', (username) => {
+        // user has a game to reconnect to, dont override their gameController 
+        if (!username || users.has(socket.id)) {
             return;
         }
         users.set(socket.id, new UserInfo(username, null));
-        // join room
-        // socket.join(ROOM);
     });
     // create a new sit n go lobby
     socket.on('createGame', () => {
@@ -86,38 +124,29 @@ socketIO.on('connection', (socket) => {
             code += randoms[randRange(26)];
         }
         socket.join(code);
-        const gameController = new GameController(code, socketIO, info.username);
+        const gameController = new GameController(code, socketIO, info.username, deleteGame);
         gameController.addPlayer(info.username, socket.id);
         codeToGame.set(code, gameController);
+        rooms.set(code, new Set(info.username));
         info.gameController = gameController;
     });
-    // join the game with given code
-    // socket.on('joinGame', (code) => {
-    //     const gameController = codeToGame.get(code);
-    //     const info = users.get(socket.id);
-    //     if (!gameController || !info) {
-    //         return;
-    //     }
-    //     info.gameController = gameController;
-    //     socket.join(code);
-    //     info.gameController.addPlayer(info.username, socket.id);
-    // });
-
-    // player sits at table
-    // socket.on('playerSit', (username, chipCount, seatNumber) => {
-    //     if (!username) {
-    //         return;
-    //     }
-    //     const gameController = users.get(socket.id).gameController;
-    //     const playerInfo = new PlayerInfo(username, randRange(10001), seatNumber);
-    //     socket.emit('updateHeroSitting', true);
-    //     // TODO: uncomment
-    //     // const playerInfo = new PlayerInfo(username, chipCount, seatNumber);
-    //     gameController.playerSit(playerInfo, socket.id);
-    // });
+    // start the game
+    socket.on('startGame', () => {
+        const info = users.get(socket.id);
+        if (!info) {
+            return;
+        }
+        const gameController = info.gameController;
+        const username = info.username;
+        if (!gameController || !username
+            || username != gameController.gameState.adminUser || gameController.players.length <= 1) {
+            return;
+        }
+        gameController.startGame();
+    });
     socket.on('disconnect', () => {
         console.log('🔥: A user disconnected');
-        sitUsOut();
+        brexit();
     });
     socket.on('fold', () => {
         const info = users.get(socket.id);
@@ -141,41 +170,7 @@ socketIO.on('connection', (socket) => {
     });
     // exit table and return to home 
     socket.on('brexit', () =>  {
-        // just sit player out of they are participating
-        sitUsOut();
-        const info = users.get(socket.id);
-        if (!info || !info.gameController) {
-            return;
-        }
-        // exiting when player isnt at the table, full delete
-        const gameController = info.gameController;
-        // remove from previous room
-        socket.leave(gameController.gameState.roomName);
-        const username = info.username;
-        if (!gameController.gameState.gameStarted
-            || gameController.playerSeat(username) == -1) {
-            // game hasnt started, remove player from game
-            info.gameController.deletePlayer(username);
-            // check for admin transfer
-            if (gameController.players.length >= 1 && username == gameController.gameState.adminUser) {
-                gameController.gameState.adminUser = gameController.players[0].name;
-                gameController.updatePlayers();
-            }
-            users.delete(socket.id);
-        }
-    });
-    // start the game
-    socket.on('startGame', () => {
-        const info = users.get(socket.id);
-        if (!info) {
-            return;
-        }
-        const gameController = info.gameController;
-        const username = info.username;
-        if (!gameController || !username || username != gameController.gameState.adminUser) {
-            return;
-        }
-        gameController.startGame();
+        brexit();
     });
 });
 
@@ -213,7 +208,6 @@ app.get('/playersInfo', (req, res) => {
         res.send("no username");
     } else {
         const info = users.get(req.query.socketID);
-
         res.json(info.gameController.playerInformation(info.username));
         // return info.gameController.playerInformation(info.username);
     }

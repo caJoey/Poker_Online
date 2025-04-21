@@ -8,7 +8,14 @@ class GameController {
     TURN = 2;
     RIVER = 3;
     SHOWDOWN = 4;
-    BLIND = 100;
+    // mins per level
+    LEVEL_TIME = 12;
+    // BB levels
+    LEVELS = [100,150,250,400,600,1000,1600,2400,4000,6000,10000];
+    // if blinds go up mid hand, wait till hand ends before increasing blind
+    waitingBlind = 100;
+    blind = 100;
+    timerInfo = {level:0, blind:0, minsLeft:0};
     // true if we are playing heads up (different postflop and dealing rules)
     headsUp = false;
     // maps username -> socket id
@@ -35,10 +42,12 @@ class GameController {
     sidePots = [];
     foldQueue = [];
     deck = [];
-    constructor(roomName, socketIO, adminUser) {
+    constructor(roomName, socketIO, adminUser, deleteGame) {
         this.socketIO = socketIO;
         // add initial player to the list
-        this.gameState = new GameState(this.players, roomName, adminUser, this.losers);
+        this.gameState = new GameState(this.players, roomName, adminUser, this.losers, this.timerInfo);
+        this.roomName = roomName;
+        this.deleteGame = deleteGame;
     }
     // set blinds, deal cards, give action to first player
     startStep() {
@@ -72,10 +81,10 @@ class GameController {
                 }
             }
             this.players[this.BBSeat].isBB = true;
-            this.bet(this.players[this.BBSeat], this.BLIND);
+            this.bet(this.players[this.BBSeat], this.blind);
             if (this.SBSeat > -1) {
                 this.players[this.SBSeat].isSB = true;
-                this.bet(this.players[this.SBSeat], this.BLIND / 2);
+                this.bet(this.players[this.SBSeat], this.blind / 2);
             }
             this.players[this.BTNSeat].isButton = true;
         };
@@ -111,7 +120,8 @@ class GameController {
             }
         };
         // initialize everything for next hand
-        this.gameState.betSize = this.gameState.minRaise = this.BLIND;
+        this.blind = this.waitingBlind;
+        this.gameState.betSize = this.gameState.minRaise = this.blind;
         this.activePlayers = [];
         this.activeCards = [];
         for (const player of this.players) {
@@ -140,14 +150,19 @@ class GameController {
             // deal the cards, collect remaining part of deck
             dealCards();
             // put action onto first to act
-            this.players[this.nextLeft(this.BBSeat)].myTurn = true;
+            const firstPlayer = this.players[this.nextLeft(this.BBSeat)];
+            firstPlayer.myTurn = true;
             this.updatePlayers();
-        } else if (this.activePlayers.length == 1) { // someone won
+        } else if (this.activePlayers.length == 1) { // game finishes / someone won
             const winner = this.activePlayers[0].name;
             this.gameState.gameWinner = winner;
             this.losers.unshift(winner);
             this.gameState.gameStarted = false;
             this.updatePlayers();
+            // delete game 15 minutes after it finishes
+            setTimeout(() => {
+                this.deleteGame(this.roomName);
+            }, 1000*5);
         }
     }
     // reveal cards, deal remaining streets, choose winner,
@@ -160,21 +175,20 @@ class GameController {
             // this.distributeWinnings([[this.activePlayers[0]]]);
         }
         else {
-            while (this.turn != this.SHOWDOWN) {
-                await this.sleep(2000);
-                this.nextTurn();
-                this.updatePlayers();
-            }
             // reveal everyones cards
             for (let i = 0; i < this.activePlayers.length; i++) {
                 const player = this.activePlayers[i];
                 const holeCards = this.activeCards[i];
                 player.holeCards = holeCards;
             }
+            while (this.turn != this.SHOWDOWN) {
+                await this.sleep(2000);
+                this.nextTurn();
+                this.updatePlayers();
+            }
             winningOrder = this.resolver.resolve(this.activePlayers, this.gameState.commCards);
             await this.sleep(3000);
         }
-        this.updatePlayers();
         // sort players based on hand strength
         this.distributeWinnings(winningOrder);
         this.updatePlayers();
@@ -227,7 +241,7 @@ class GameController {
     }
     // updates all players of the current state of the table
     updatePlayers() {
-        this.socketIO.to(this.gameState.roomName).emit('updateTable', this.gameState);
+        this.socketIO.to(this.roomName).emit('updateTable', this.gameState);
     }
     // picks random number between 0 and end exclusive
     randRange(end) {
@@ -245,6 +259,7 @@ class GameController {
         if (player.chips == 0) {
             this.sidePots.push(player);
         }
+        this.socketIO.to(this.roomName).emit('playSound', 'bet');
         this.updatePlayers();
     }
     // raises to the raiseSize, taking into account chips player already has
@@ -282,17 +297,20 @@ class GameController {
         this.nextProgress--;
         this.foldQueue.push(player);
         this.passTurn(player);
+        this.socketIO.to(this.roomName).emit('playSound', 'fold');
         this.updatePlayers();
     }
     callCheck(username) {
         const player = this.players[this.playerSeat(username)];
         // call
-        if (this.gameState.betSize > 0) {
+        if (this.gameState.betSize > 0 && player.betSize < this.gameState.betSize) {
             if (player.chips + player.betSize < this.gameState.betSize) {
                 this.bet(player, player.chips);
             } else {
                 this.raiseTo(player, this.gameState.betSize);
             }
+        } else { // play check sound
+            this.socketIO.to(this.roomName).emit('playSound', 'check');
         }
         this.passTurn(player);
         this.updatePlayers();
@@ -352,7 +370,7 @@ class GameController {
                 this.endStep();
             } else { // next street
                 this.collectBets();
-                this.gameState.minRaise = this.BLIND;
+                this.gameState.minRaise = this.blind;
                 this.gameState.betSize = 0;
                 this.nextProgress = 0;
                 let startSeat = this.nextLeft(this.BTNSeat);
@@ -538,8 +556,43 @@ class GameController {
         }
 
         this.gameState.gameStarted = true;
+        this.handleBlindTimer(0, -1);
         this.startStep();
         this.updatePlayers();
+    }
+    // updates the blind timer 
+    handleBlindTimer(minsLeft, levelIndex) {
+        const updateBlindTimer = (level, blind, minsLeft) => {
+            this.timerInfo.level = level;
+            this.timerInfo.blind = blind;
+            this.timerInfo.minsLeft = minsLeft;
+        };
+        // base case, go to next level or emit last level
+        if (minsLeft == 0) {
+            levelIndex++;
+            this.waitingBlind = this.LEVELS[levelIndex];
+            // last level
+            if (levelIndex == this.LEVELS.length - 1) {
+                // this.socketIO.to(this.roomName).emit('updateTimer', levelIndex+1, this.waitingBlind, '∞');
+                updateBlindTimer(levelIndex+1, this.waitingBlind, '∞');
+                this.updatePlayers();
+                return;
+            }
+            // not last level
+            minsLeft = this.LEVEL_TIME;
+            // this.socketIO.to(this.roomName).emit('updateTimer', levelIndex+1, this.waitingBlind, minsLeft);
+            updateBlindTimer(levelIndex+1, this.waitingBlind, minsLeft);
+            this.updatePlayers();
+        }
+        setTimeout(() => {
+            // dont update it to 0
+            if (minsLeft > 1) {
+                updateBlindTimer(levelIndex+1, this.waitingBlind, minsLeft);
+                this.updatePlayers();
+            }
+            this.handleBlindTimer(minsLeft-1, levelIndex)
+        }, 1000*15);
+        // }, 1000*60*this.LEVEL_TIME);
     }
     // sit the player at the table
     // playerSit(playerInfo, socketID) {
