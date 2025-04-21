@@ -4,7 +4,7 @@ import HomePage from './Components/HomePage';
 import Table from "./Components/Table"
 import socketIO from 'socket.io-client';
 
-const socket = socketIO.connect('http://localhost:4000');
+const socket = socketIO.connect(process.env.SOCKET_URL || 'http://localhost:4000');
 function App() {
   return (
     <BrowserRouter>

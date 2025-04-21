@@ -260,7 +260,9 @@ app.get('/joinGame', (req, res) => {
     });
 });
 // stolen from https://www.youtube.com/watch?v=INVodizZQCY
-// breaks development
+// breaks developmen
+console.log('process.env.NODE_ENV === production')
+console.log(process.env.NODE_ENV === 'production')
 if (process.env.NODE_ENV === 'production') {
     const path = require('path');
     app.use(express.static(path.join(__dirname, 'client', 'build')));
