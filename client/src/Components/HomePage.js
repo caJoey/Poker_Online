@@ -15,7 +15,7 @@ export default function HomePage ({ socket }) {
     // deprecated: moved to reconnect()
     // useEffect(() => {
     //     async function tryReconnect() {
-    //         const query = `http://localhost:4000/reconnectCheck?socketID=${socket.id}&oldId=${localStorage.getItem('id')}`;
+    //         const query = `/reconnectCheck?socketID=${socket.id}&oldId=${localStorage.getItem('id')}`;
     //         const data = await fetch(query);
     //         const dataJSON = await data.json();
     //         localStorage.setItem('id', socket.id);
@@ -72,7 +72,7 @@ function CreateOrJoin({setProgress, socket}) {
         if (code == null || code == "") {
             return;
         }
-        const query = `http://localhost:4000/joinGame?socketID=${socket.id}&guess=${code}`;
+        const query = `/joinGame?socketID=${socket.id}&guess=${code}`;
         const data = await fetch(query);
         const dataJSON = await data.json();
         if (dataJSON.success) {
@@ -89,7 +89,7 @@ function CreateOrJoin({setProgress, socket}) {
     async function reconnect() {
         const oldID = localStorage.getItem('id');
         if (oldID) {
-            const query = `http://localhost:4000/reconnectCheck?socketID=${socket.id}&oldId=${oldID}`;
+            const query = `/reconnectCheck?socketID=${socket.id}&oldId=${oldID}`;
             const data = await fetch(query);
             const dataJSON = await data.json();
             if (dataJSON.alreadyConnected) {
