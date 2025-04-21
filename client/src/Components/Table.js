@@ -14,7 +14,7 @@ import audioOff from '../Images/audioOff.png';
 const BET = new Audio(betSound);
 const CHECK = new Audio(checkSound);
 const FOLD = new Audio(foldSound);
-const BASE_URL = process.env.SOCKET_URL || "http://localhost:8080"
+const BASE_URL = process.env.REACT_APP_SOCKET_URL || ''
 
 // state of the game, passed to all clients whenever there is a UI update
 class GameState {

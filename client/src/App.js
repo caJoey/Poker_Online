@@ -6,7 +6,8 @@ import socketIO from 'socket.io-client';
 
 console.log('process.env.SOCKET_URL')
 console.log(process.env.SOCKET_URL)
-const socket = socketIO.connect(process.env.SOCKET_URL || "http://localhost:8080");
+console.log(window.location.origin)
+const socket = socketIO.connect(process.env.REACT_APP_SOCKET_URL || '');
 // const socket = socketIO.connect(process.env.SOCKET_URL || 'http://localhost:8080');
 function App() {
   return (

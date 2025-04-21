@@ -66,7 +66,7 @@ export default function HomePage ({ socket }) {
 }
 
 function CreateOrJoin({setProgress, socket}) {
-    const BASE_URL = process.env.SOCKET_URL || "http://localhost:8080"
+    const BASE_URL = process.env.REACT_APP_SOCKET_URL || ''
     const navigate = useNavigate();
     async function joinGame() {
         const code = prompt('Enter the game code');
