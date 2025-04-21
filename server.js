@@ -9,10 +9,15 @@ const cors = require('cors');
 // allows comms between client and server
 app.use(cors());
 // initialize a Socket.IO instance on top of the http server
+
+let origin = "http://localhost:3000";
+if (process.env.NODE_ENV == 'production') {
+    origin = undefined;
+}
 const socketIO = require('socket.io')(http, {
     cors: {
         // only requests from here are accepted
-        origin: process.env.CLIENT_URL || "http://localhost:3000"
+        origin: origin
     }
 });
 
@@ -261,9 +266,9 @@ app.get('/joinGame', (req, res) => {
 });
 // stolen from https://www.youtube.com/watch?v=INVodizZQCY
 // breaks developmen
-console.log('process.env.NODE_ENV === production')
-console.log(process.env.NODE_ENV === 'production')
-if (process.env.NODE_ENV === 'production') {
+console.log('process.env.NODE_ENV == production')
+console.log(process.env.NODE_ENV == 'production')
+if (process.env.NODE_ENV == 'production') {
     const path = require('path');
     app.use(express.static(path.join(__dirname, 'client', 'build')));
     app.get('*', (req, res) => {
