@@ -1,0 +1,3 @@
+in package.json:
+// add this for dev
+"start": "nodemon server.js"
