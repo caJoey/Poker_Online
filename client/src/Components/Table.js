@@ -14,8 +14,6 @@ import audioOff from '../Images/audioOff.png';
 const BET = new Audio(betSound);
 const CHECK = new Audio(checkSound);
 const FOLD = new Audio(foldSound);
-const urlStart = window.location.origin;
-console.log(urlStart);
 
 // state of the game, passed to all clients whenever there is a UI update
 class GameState {

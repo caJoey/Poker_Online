@@ -15,15 +15,6 @@ const socketIO = require('socket.io')(http, {
         origin: process.env.CLIENT_URL || "http://localhost:3000"
     }
 });
-// stolen from https://www.youtube.com/watch?v=INVodizZQCY
-// breaks development
-if (process.env.NODE_ENV === 'production') {
-    const path = require('path');
-    app.use(express.static(path.join(__dirname, 'client', 'build')));
-    app.get('*', (req, res) => {
-        res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'))
-    });
-}
 
 const PlayerInfo = require('./PlayerInfo');
 const GameController = require('./GameController');
@@ -268,6 +259,15 @@ app.get('/joinGame', (req, res) => {
         success: true
     });
 });
+// stolen from https://www.youtube.com/watch?v=INVodizZQCY
+// breaks development
+if (process.env.NODE_ENV === 'production') {
+    const path = require('path');
+    app.use(express.static(path.join(__dirname, 'client', 'build')));
+    app.get('*', (req, res) => {
+        res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'))
+    });
+}
 http.listen(PORT, () => {
     console.log(`Server listening on http://localhost:${PORT}/`);
 });
