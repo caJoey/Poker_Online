@@ -12,7 +12,6 @@ The server contains the logic for the game, and sends table updates to each conn
  * Host it on a website
  * Private and public cash games
  * Custom tournaments / "sit n gos"
- * Handle reconnections using express-session or cookies
  * Chat
  * Hand replaying
  * Unique stuff
