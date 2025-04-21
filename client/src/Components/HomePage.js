@@ -66,13 +66,14 @@ export default function HomePage ({ socket }) {
 }
 
 function CreateOrJoin({setProgress, socket}) {
+    const BASE_URL = process.env.SOCKET_URL || "http://localhost:8080"
     const navigate = useNavigate();
     async function joinGame() {
         const code = prompt('Enter the game code');
         if (code == null || code == "") {
             return;
         }
-        const query = `/joinGame?socketID=${socket.id}&guess=${code}`;
+        const query = `${BASE_URL}/joinGame?socketID=${socket.id}&guess=${code}`;
         const data = await fetch(query);
         const dataJSON = await data.json();
         if (dataJSON.success) {
@@ -89,7 +90,7 @@ function CreateOrJoin({setProgress, socket}) {
     async function reconnect() {
         const oldID = localStorage.getItem('id');
         if (oldID) {
-            const query = `/reconnectCheck?socketID=${socket.id}&oldId=${oldID}`;
+            const query = `${BASE_URL}/reconnectCheck?socketID=${socket.id}&oldId=${oldID}`;
             const data = await fetch(query);
             const dataJSON = await data.json();
             if (dataJSON.alreadyConnected) {

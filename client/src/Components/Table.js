@@ -14,6 +14,7 @@ import audioOff from '../Images/audioOff.png';
 const BET = new Audio(betSound);
 const CHECK = new Audio(checkSound);
 const FOLD = new Audio(foldSound);
+const BASE_URL = process.env.SOCKET_URL || "http://localhost:8080"
 
 // state of the game, passed to all clients whenever there is a UI update
 class GameState {
@@ -71,7 +72,7 @@ export default function Table({ socket }) {
     useEffect(() => {
         // initialize gameState and info about hero
         async function initializeState() {
-            const query = `/playersInfo?socketID=${socket.id}`;
+            const query = `${BASE_URL}/playersInfo?socketID=${socket.id}`;
             const data = await fetch(query);
             const dataJSON = await data.json();
             setGameState(dataJSON.gameState);
@@ -80,7 +81,7 @@ export default function Table({ socket }) {
             setCards(dataJSON.cards);
         }
         async function getUsername() {
-            const query = `/username?socketID=${socket.id}`;
+            const query = `${BASE_URL}/username?socketID=${socket.id}`;
             const data = await fetch(query);
             const dataJSON = await data.json();
             setUser(dataJSON.username);
@@ -271,7 +272,7 @@ function ActionButtons({socket, heroInfo, betSize, minRaise}) {
     const [call, setCall] = useState(Math.min(betSize - heroInfo.betSize, heroInfo.chips));
     useEffect(() => {
         async function getAllIn() {
-            const query = `/everyoneExceptOnePersonIsAllIn?socketID=${socket.id}`;
+            const query = `${BASE_URL}/everyoneExceptOnePersonIsAllIn?socketID=${socket.id}`;
             const data = await fetch(query);
             const dataJSON = await data.json();
             setHideRaise(dataJSON.everyoneExceptOnePersonIsAllIn);
