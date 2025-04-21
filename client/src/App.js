@@ -4,6 +4,8 @@ import HomePage from './Components/HomePage';
 import Table from "./Components/Table"
 import socketIO from 'socket.io-client';
 
+console.log('process.env.SOCKET_URL')
+console.log(process.env.SOCKET_URL)
 const socket = socketIO.connect(process.env.SOCKET_URL || 'http://localhost:4000');
 function App() {
   return (

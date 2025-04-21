@@ -268,13 +268,16 @@ app.get('/joinGame', (req, res) => {
 // breaks developmen
 console.log('process.env.NODE_ENV == production')
 console.log(process.env.NODE_ENV == 'production')
-if (process.env.NODE_ENV == 'production') {
+console.log('process.env.NODE_ENV')
+console.log(process.env.NODE_ENV)
+// TODO: uncomment
+// if (process.env.NODE_ENV == 'production') {
     const path = require('path');
     app.use(express.static(path.join(__dirname, 'client', 'build')));
     app.get('*', (req, res) => {
         res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'))
     });
-}
+// }
 http.listen(PORT, () => {
     console.log(`Server listening on http://localhost:${PORT}/`);
 });
