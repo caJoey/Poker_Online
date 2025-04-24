@@ -89,7 +89,7 @@ socketIO.on('connection', (socket) => {
         // remove from previous room
         socket.leave(gameController.gameState.roomName);
         const username = info.username;
-        // game hasnt started, remove player from game
+        // game hasnt started or player not sitting, remove player from game
         // this auto cleans
         if (!gameController.gameState.gameStarted
             || gameController.playerSeat(username) == -1) {
@@ -203,7 +203,7 @@ app.get('/everyoneExceptOnePersonIsAllIn', (req, res) => {
         });
     }
 });
-// return info about the player
+// return info about the player 
 app.get('/playersInfo', (req, res) => {
     if (Object.entries(req.query).length == 0 || req.query.socketID == undefined) {
         res.send("🚨 no socketID specified");
@@ -223,8 +223,9 @@ app.get('/reconnectCheck', (req, res) => {
         const newId = req.query.socketID;
         const oldId = req.query.oldId;
         const socket = socketIO.sockets.sockets.get(newId);
-        // player is returning
-        if (oldId && users.has(oldId) && users.get(oldId).gameController) {
+        // player is returning and not already connected 
+        if (oldId && users.has(oldId) && users.get(oldId).gameController &&
+        !(socketIO.sockets.sockets.has(oldId))) {
             // change the socket over to new one
             const info = users.get(oldId);
             info.gameController.socketChange(info.username, newId);
@@ -265,14 +266,6 @@ app.get('/joinGame', (req, res) => {
     });
 });
 // stolen from https://www.youtube.com/watch?v=INVodizZQCY
-// breaks developmen
-console.log('process.env.NODE_ENV == 1')
-console.log(process.env.NODE_ENV == 1)
-console.log('process.env.NODE_ENV')
-console.log(process.env.NODE_ENV)
-console.log('process.env.SOCKET_URL')
-console.log(process.env.SOCKET_URL)
-// TODO: uncomment
 if (process.env.NODE_ENV == 1) {
     const path = require('path');
     app.use(express.static(path.join(__dirname, 'client', 'build')));

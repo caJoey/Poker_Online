@@ -1,3 +1,5 @@
 in package.json:
 // add this for dev
 "start": "nodemon server.js"
+// add this for production
+"start": "node server.js"

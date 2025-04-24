@@ -151,7 +151,7 @@ export default function Table({ socket }) {
         for (const player of gameState.players) {
             if (player.name === user && player.myTurn) {
                 actionButtons = <ActionButtons socket={socket} heroInfo={player} 
-                betSize={gameState.betSize} minRaise={gameState.minRaise}/>;
+                betSize={gameState.betSize} minRaise={gameState.minRaise} everyoneExceptOnePersonIsAllIn={gameState.everyoneExceptOnePersonIsAllIn}/>;
                 return true;
             }
         }
@@ -161,6 +161,10 @@ export default function Table({ socket }) {
         socket.emit('sitOut');
     }
     function startGame() {
+        console.log(gameState)
+        if (gameState.players.length <= 1) {
+            alert('>= 2 players needed to start!')
+        }
         socket.emit('startGame');
     }
     function BrexitButton({color}) {
@@ -265,20 +269,20 @@ function CommunityCards({cards}) {
     return (<>{commCards}</>)
 }
 
-function ActionButtons({socket, heroInfo, betSize, minRaise}) {
-    const [hideRaise, setHideRaise] = useState(false);
+function ActionButtons({socket, heroInfo, betSize, minRaise, everyoneExceptOnePersonIsAllIn}) {
+    const [hideRaise, setHideRaise] = useState(everyoneExceptOnePersonIsAllIn);
     const [raiseSlider, setRaiseSlider] =
         useState(Math.min(heroInfo.chips + heroInfo.betSize, minRaise + betSize));
     const [call, setCall] = useState(Math.min(betSize - heroInfo.betSize, heroInfo.chips));
-    useEffect(() => {
-        async function getAllIn() {
-            const query = `${BASE_URL}/everyoneExceptOnePersonIsAllIn?socketID=${socket.id}`;
-            const data = await fetch(query);
-            const dataJSON = await data.json();
-            setHideRaise(dataJSON.everyoneExceptOnePersonIsAllIn);
-        }
-        getAllIn();
-    }, [socket.id]); // only runs once
+    // useEffect(() => {
+    //     async function getAllIn() {
+    //         const query = `${BASE_URL}/everyoneExceptOnePersonIsAllIn?socketID=${socket.id}`;
+    //         const data = await fetch(query);
+    //         const dataJSON = await data.json();
+    //         setHideRaise(dataJSON.everyoneExceptOnePersonIsAllIn);
+    //     }
+    //     getAllIn();
+    // }, [socket.id]); // only runs once
     useEffect(() => {
         setRaiseSlider(Math.min(heroInfo.chips + heroInfo.betSize, minRaise + betSize));
     }, [minRaise, betSize, heroInfo]);
@@ -289,8 +293,6 @@ function ActionButtons({socket, heroInfo, betSize, minRaise}) {
             betVal = minRaise+betSize;
         }
         betVal = Math.min(heroInfo.chips + heroInfo.betSize, betVal);
-        // TODO: check for raise that is less than minRaise
-        // betVal = Math.max(minRaise, betVal);
         setRaiseSlider(betVal);
     }
 

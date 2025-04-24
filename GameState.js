@@ -12,6 +12,7 @@ class GameState {
     gameStarted = false;
     // username of the winning player
     gameWinner = '';
+    everyoneExceptOnePersonIsAllIn = false;
     // roomName == code
     constructor(players, roomName, adminUser, losers, timerInfo) {
         this.players = players;
