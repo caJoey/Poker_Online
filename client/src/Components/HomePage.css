@@ -65,3 +65,18 @@ form {
 .choiceButton h2 {
     font-size: 250%;
 }
+
+.git_btn {
+    position: fixed;
+    top: 82%;
+    left: 91%;
+    height: 16%;
+    width: 8%;
+    background-image: url('../Images/github-mark.png');
+    background-position: 50% 50%;
+    background-size: 75%;
+    background-repeat: no-repeat;
+    border: none;
+    background-color: white;
+    cursor: pointer;
+}

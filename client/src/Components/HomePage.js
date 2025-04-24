@@ -54,6 +54,8 @@ export default function HomePage ({ socket }) {
                     />
                     <button><code>{"->"}</code></button>
                 </form>
+                <a href="https://github.com/caJoey/Poker_Online"
+                target="_blank" rel="noopener noreferrer"><button className="git_btn"></button></a>
             </div>
         )
     } else if (progress == 1) { // create or join
