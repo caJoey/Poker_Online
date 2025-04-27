@@ -497,8 +497,7 @@ class GameController {
             return;
         }
         this.ids.set(username, socketID);
-        this.players.push(new PlayerInfo(username, this.randRange(10001), this.players.length));
-        // this.players.push(new PlayerInfo(username, 10000, this.players.length));
+        this.players.push(new PlayerInfo(username, 10000, this.players.length));
         this.updatePlayers();
     }
     // resets a seat when a player leaves, may leave bet out there
