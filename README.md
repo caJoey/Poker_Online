@@ -19,7 +19,6 @@ The server (root folder) contains the logic for the game, and sends table update
  * Hand replaying
  * Larger tournmanets
  * Custom blind structure
- * Unique stuff
 
 ## How to run
 1. Clone the repository
