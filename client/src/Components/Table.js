@@ -151,7 +151,7 @@ export default function Table({ socket }) {
         for (const player of gameState.players) {
             if (player.name === user && player.myTurn) {
                 actionButtons = <ActionButtons socket={socket} heroInfo={player} 
-                betSize={gameState.betSize} minRaise={gameState.minRaise} everyoneExceptOnePersonIsAllIn={gameState.everyoneExceptOnePersonIsAllIn}/>;
+                betSize={gameState.betSize} minRaise={gameState.minRaise} gameState={gameState}/>;
                 return true;
             }
         }
@@ -161,7 +161,6 @@ export default function Table({ socket }) {
         socket.emit('sitOut');
     }
     function startGame() {
-        console.log(gameState)
         if (gameState.players.length <= 1) {
             alert('>= 2 players needed to start!')
         }
@@ -169,7 +168,7 @@ export default function Table({ socket }) {
     }
     function BrexitButton({color}) {
         const brexit = () => {
-            if (!window.confirm('Are you sure you want to brexit? Doing so may permanently delete you from the game!')) {
+            if (!window.confirm('Are you sure you want to exit? Doing so may permanently delete you from the game!')) {
                     return;
             }
             socket.emit('brexit');
@@ -177,7 +176,7 @@ export default function Table({ socket }) {
         }
         return (
             <button className='sitOutButton' onClick={brexit}style={{top:'3%', backgroundColor: color}}>
-                Brexit
+                <h2>Exit</h2>
             </button>
         )
     }
@@ -191,7 +190,7 @@ export default function Table({ socket }) {
                 text = 'Unsit Out'
             }
             return (<button className='sitOutButton' onClick={toggleSittingOut}>
-                {text}</button>)
+                <h2>{text}</h2></button>)
         }
         return <></>;
     }
@@ -249,7 +248,7 @@ export default function Table({ socket }) {
                 {gameState.adminUser == user &&
                 <button className='sitOutButton' 
                     style={{backgroundColor: 'rgb(37, 211, 69)'}} onClick={startGame}>
-                    start
+                    <h2 style={{fontWeight: 400}}>Start</h2>
                 </button>}
             </div>
             {<BrexitButton color='rgb(190, 120, 215)'/>}
@@ -269,20 +268,11 @@ function CommunityCards({cards}) {
     return (<>{commCards}</>)
 }
 
-function ActionButtons({socket, heroInfo, betSize, minRaise, everyoneExceptOnePersonIsAllIn}) {
-    const [hideRaise, setHideRaise] = useState(everyoneExceptOnePersonIsAllIn);
+function ActionButtons({socket, heroInfo, betSize, minRaise, gameState}) {
+    const [hideRaise, setHideRaise] = useState(gameState.everyoneExceptOnePersonIsAllIn);
     const [raiseSlider, setRaiseSlider] =
         useState(Math.min(heroInfo.chips + heroInfo.betSize, minRaise + betSize));
     const [call, setCall] = useState(Math.min(betSize - heroInfo.betSize, heroInfo.chips));
-    // useEffect(() => {
-    //     async function getAllIn() {
-    //         const query = `${BASE_URL}/everyoneExceptOnePersonIsAllIn?socketID=${socket.id}`;
-    //         const data = await fetch(query);
-    //         const dataJSON = await data.json();
-    //         setHideRaise(dataJSON.everyoneExceptOnePersonIsAllIn);
-    //     }
-    //     getAllIn();
-    // }, [socket.id]); // only runs once
     useEffect(() => {
         setRaiseSlider(Math.min(heroInfo.chips + heroInfo.betSize, minRaise + betSize));
     }, [minRaise, betSize, heroInfo]);
@@ -295,6 +285,16 @@ function ActionButtons({socket, heroInfo, betSize, minRaise, everyoneExceptOnePe
         betVal = Math.min(heroInfo.chips + heroInfo.betSize, betVal);
         setRaiseSlider(betVal);
     }
+
+    const handleScroll = (event) => {
+        let betVal = raiseSlider - gameState.blind;
+        if (event.deltaY < 0) {
+            betVal = raiseSlider + gameState.blind;
+        }
+        betVal = Math.min(heroInfo.chips + heroInfo.betSize, betVal);
+        betVal = Math.max(minRaise + betSize, betVal);
+        setRaiseSlider(betVal);
+    };
 
     // hero calls or checks
     function callCheck() {
@@ -321,8 +321,11 @@ function ActionButtons({socket, heroInfo, betSize, minRaise, everyoneExceptOnePe
             className: 'slider',
             type: 'range',
             min: minRaise + betSize,
-            max: heroInfo.chips + heroInfo.betSize,
-            step: 1,
+            max: heroInfo.chips + heroInfo.betSize + gameState.blind,
+            step: gameState.blind,
+            // step: (raiseSlider + gameState.blind > heroInfo.chips + heroInfo.betSize)
+            // ? 1
+            // : gameState.blind,
             value: raiseSlider,
             onChange: handleSlider
         }
@@ -333,7 +336,7 @@ function ActionButtons({socket, heroInfo, betSize, minRaise, everyoneExceptOnePe
     return (
         <div className='buttonsAndSlider'>
             {!playerGottaGoAllIn &&
-                <div className='sliderAndBentry'>
+                <div className='sliderAndBentry' onWheel={handleScroll}>
                     <input {...slideProps} />
                     <input type='text' className='bentry' value={raiseSlider} onChange={handleSlider}></input>
                 </div>

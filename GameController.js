@@ -48,7 +48,7 @@ class GameController {
     constructor(roomName, socketIO, adminUser, deleteGame) {
         this.socketIO = socketIO;
         // add initial player to the list
-        this.gameState = new GameState(this.players, roomName, adminUser, this.losers, this.timerInfo);
+        this.gameState = new GameState(this.players, roomName, adminUser, this.losers, this.timerInfo, this.blind);
         this.roomName = roomName;
         this.deleteGame = deleteGame;
     }
@@ -126,6 +126,7 @@ class GameController {
         }
         // initialize everything for next hand
         this.blind = this.waitingBlind;
+        this.gameState.blind = this.blind;
         this.gameState.betSize = this.gameState.minRaise = this.blind;
         this.activePlayers = [];
         this.activeCards = [];
@@ -469,12 +470,8 @@ class GameController {
         }
         return notAllIn <= 1;
     }
-    // player lost their chips
+    // player lost their chips 
     removePlayer(username) {
-        console.log('players')
-        console.log(this.players)
-        console.log('activePlayers')
-        console.log(this.activePlayers)
         this.reset(this.playerSeat(username));
         // remove the sitting out button
         const id = this.ids.get(username);
@@ -493,20 +490,20 @@ class GameController {
         }
         this.updatePlayers();
     }
-    // add player to the sitngo
+    // add player to the sitngo 
     addPlayer(username, socketID) {
         // player can only spectate
         if (this.gameState.gameStarted || this.players.length >= 9) {
             return;
         }
         this.ids.set(username, socketID);
-        this.players.push(new PlayerInfo(username, 10000, this.players.length));
+        this.players.push(new PlayerInfo(username, this.randRange(10001), this.players.length));
+        // this.players.push(new PlayerInfo(username, 10000, this.players.length));
         this.updatePlayers();
     }
     // resets a seat when a player leaves, may leave bet out there
     reset(seatnum) {
         if (seatnum == -1) {
-            console.log('in reset: seatnum == -1')
             return;
         }
         const betSize = this.players[seatnum].betSize;

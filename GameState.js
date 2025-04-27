@@ -14,12 +14,13 @@ class GameState {
     gameWinner = '';
     everyoneExceptOnePersonIsAllIn = false;
     // roomName == code
-    constructor(players, roomName, adminUser, losers, timerInfo) {
+    constructor(players, roomName, adminUser, losers, timerInfo, blind) {
         this.players = players;
         this.roomName = roomName;
         this.adminUser = adminUser;
         this.losers = losers;
         this.timerInfo = timerInfo;
+        this.blind = blind;
     }
 }
 

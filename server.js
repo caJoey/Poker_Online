@@ -164,7 +164,7 @@ socketIO.on('connection', (socket) => {
     socket.on('raise', (amount) => {
         const info = users.get(socket.id);
         info.gameController.raise(info.username, amount);
-        // raise(socketToPlayer(socket.id), amount);
+        // raise(socketToPlayer(socket.id), amount); 
     });
     socket.on('sitOut', () => {
         const info = users.get(socket.id);

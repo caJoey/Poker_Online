@@ -5,6 +5,7 @@ import "./Table.css";
 import create from '../Images/create.png';
 import join from '../Images/join.png';
 import rejoin from '../Images/reconnect.png';
+import gitImage from '../Images/github-mark.png';
 
 export default function HomePage ({ socket }) {
     const navigate = useNavigate();
@@ -55,7 +56,7 @@ export default function HomePage ({ socket }) {
                     <button><code>{"->"}</code></button>
                 </form>
                 <a href="https://github.com/caJoey/Poker_Online"
-                target="_blank" rel="noopener noreferrer"><button className="git_btn"></button></a>
+                target="_blank" rel="noopener noreferrer"><img src={gitImage} className='git_btn'></img></a>
             </div>
         )
     } else if (progress == 1) { // create or join

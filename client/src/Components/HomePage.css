@@ -24,6 +24,11 @@ h2 {
     text-align: center;
 }
 
+#login h1 {
+    /* font-size: clamp(25px, 20vmin, 50px); */
+    /* font-size: 200%; */
+}
+
 form {
     /* margin-top: ; */
     /* makes all dimensions 2x as big */
@@ -34,7 +39,7 @@ form {
     aspect-ratio: 4/3;
     width: 50vmax;
     max-height: 100vh;
-    max-width: 100vw;
+    max-width: 80vw;
     /* height: 50%; */
     /* background-color: red; */
 
@@ -68,15 +73,29 @@ form {
 
 .git_btn {
     position: fixed;
-    top: 82%;
-    left: 91%;
+    aspect-ratio: 1/1;
+    right: 3%;
+    bottom: 3%;
     height: 16%;
-    width: 8%;
-    background-image: url('../Images/github-mark.png');
-    background-position: 50% 50%;
-    background-size: 75%;
-    background-repeat: no-repeat;
     border: none;
-    background-color: white;
     cursor: pointer;
+    /* min-width: 50px;
+    min-height: 50px; */
+}
+
+@media (max-width: 600px) {
+    #login h1 {
+        font-size: clamp(25px, 20vmin, 50px);
+    }
+
+    .createOrJoin {
+        aspect-ratio: 3/4;
+        flex-direction: column;
+    }
+}
+
+@media (max-height: 600px) {
+    #login h1 {
+        font-size: clamp(25px, 20vmin, 50px);
+    }
 }

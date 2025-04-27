@@ -1,10 +1,13 @@
 html,
 body,
 #root,
+.everything,
 .App{
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  overflow: hidden; 
+  /* this full deletes scrollbars for some reason */
+  position: relative;
 }
 
 .tableBackground {
@@ -107,8 +110,8 @@ body,
   width: 25%;
 
   position: fixed;
-  right: 3%;
-  bottom: -10%;
+  right: 6vmin;
+  bottom: -10vmin;
 }
 
 .actionButtons {
@@ -207,8 +210,10 @@ body,
 }
 
 .sitOutButton {
-  width: 7.5%;
+  /* width: 7.5%; */
   height: 8%;
+  min-width: 15vmin;
+  min-height: 50px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -219,8 +224,8 @@ body,
   font-size: 2vmin;
 
   position: fixed;
-  left: 2%;
-  bottom: 3%;
+  left: 2vmin;
+  bottom: 3vmin;
 }
 
 .preStart {
@@ -237,6 +242,7 @@ body,
 
 .preStart h2 {
   font-size: 250%;
+  text-align: center;
 }
 
 .preStart li {
@@ -252,7 +258,7 @@ body,
 
 .topRight {
   position: fixed;
-  right: 2%;
+  right: clamp(3vmin, 2%, 9999px);
   top: 2%;
   display: flex;
   flex-direction: column;
@@ -261,9 +267,80 @@ body,
 }
 
 .topRight h2 {
-  font-size: 2vmin;
+  font-size: clamp(15px, 2vmin, 999px);
 }
 
 .muteButton {
   width: 10vmin;
 }
+
+/* small width */
+@media (max-width: 600px){
+  .preStart {
+    border: none;
+    overflow:scroll;
+  }
+  .preStart h2 {
+    font-size: clamp(25px, 5vmin, 50px);
+  }
+  .seatCheese {
+    border: 2px solid black;
+  }
+  .table {
+    border: 5px solid black;
+    width: 80vmin;
+  }
+  .card {
+    left: 5%;
+    min-width: 35px;
+  }
+  .buttonsAndSlider {
+    width: 60%;
+  }
+  .actionButtons h2 {
+    font-size: 200%;
+  }
+  .nameAndChips h2 {
+    font-size: 180%;
+  }
+}
+
+/* small height */
+@media (max-height: 600px){
+  .preStart {
+    border: none;
+    overflow:scroll;
+  }
+  .preStart h2 {
+    font-size: clamp(25px, 5vmin, 50px);
+  }
+  .seatCheese {
+    border: 2px solid black;
+  }
+  .table {
+    border: 5px solid black;
+  }
+  .card {
+    left: 5%;
+    min-width: 35px;
+  }
+  .buttonsAndSlider {
+    height: 35%;
+  }
+  .nameAndChips h2 {
+    font-size: 180%;
+  }
+}
+
+/* tablet stuff */
+@media (max-width: 1000px) or (max-height: 1000px) {
+  .table {
+    width: 80vmin;
+  }
+}
+
+/* @media (min-width: 900px) and (max-width: 1000px) {
+  .buttonsAndSlider {
+    width: 45%;
+  }
+} */
