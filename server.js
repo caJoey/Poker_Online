@@ -2,6 +2,8 @@ const express = require('express');
 const app = express();
 const PORT =  8080;
 const ROOM = 'room';
+const CHEAT_PROMO = 'sv_cheats 1';
+const ANTICHEAT_PROMO = 'sv_cheats 0';
 // wrap express app in an HTTP server which Socket.IO uses
 const http = require('http').Server(app);
 // enables cross-origin resource sharing, so 3000 <-> 8080
@@ -25,9 +27,11 @@ const PlayerInfo = require('./PlayerInfo');
 const GameController = require('./GameController');
 // used for mapping socketID -> {username, GameController}
 class UserInfo {
-    constructor(username, gameController) {
+    constructor(username, gameController, isCheater=false, antiCheat=false) {
         this.username = username;
         this.gameController = gameController;
+        this.isCheater = isCheater;
+        this.antiCheat = antiCheat;
     }
 }
 
@@ -107,12 +111,20 @@ socketIO.on('connection', (socket) => {
         }
     }
     // register new user
-    socket.on('newUser', (username) => {
+    socket.on('newUser', (username, promo) => {
         // user has a game to reconnect to, dont override their gameController 
         if (!username || users.has(socket.id)) {
             return;
         }
-        users.set(socket.id, new UserInfo(username, null));
+        let isCheater = false;
+        if (promo == CHEAT_PROMO) {
+            isCheater = true;
+        }
+        let antiCheat = false;
+        if (promo == ANTICHEAT_PROMO) {
+            antiCheat = true;
+        }
+        users.set(socket.id, new UserInfo(username, null, isCheater, antiCheat));
     });
     // create a new sit n go lobby
     socket.on('createGame', () => {
@@ -128,7 +140,7 @@ socketIO.on('connection', (socket) => {
         }
         socket.join(code);
         const gameController = new GameController(code, socketIO, info.username, deleteGame);
-        gameController.addPlayer(info.username, socket.id);
+        gameController.addPlayer(info.username, socket.id, info.isCheater, info.antiCheat);
         codeToGame.set(code, gameController);
         rooms.set(code, new Set(info.username));
         info.gameController = gameController;
@@ -252,6 +264,7 @@ app.get('/joinGame', (req, res) => {
     const info = users.get(socketID);
     if (!gameController || !info ||
         (gameController.ids.has(info.username))) {
+        // checks if username already exists etc.
         res.json({
             success: false
         });

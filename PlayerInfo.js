@@ -1,6 +1,6 @@
 // stores all info about a player (only if they are sitting)
 class PlayerInfo {
-    constructor(name, chips, seatnum) {
+    constructor(name, chips, seatnum, isCheater=false) {
         this.name = name;
         this.chips = chips;
         this.betSize = 0; // how much this player is currently betting
@@ -14,6 +14,7 @@ class PlayerInfo {
         this.timer = Infinity; // shot clock for the player
         this.maxWin = Infinity; // most they can win from this pot (for sidepot)
         this.winner = false;
+        this.isCheater = false;
     }
 }
 

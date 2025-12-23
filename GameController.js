@@ -9,7 +9,7 @@ class GameController {
     RIVER = 3;
     SHOWDOWN = 4;
     // mins per level
-    LEVEL_TIME = 12;
+    LEVEL_TIME = 6;
     // BB levels
     LEVELS = [100,150,250,400,600,1000,1600,2400,4000,6000,10000,20000,50000,100000];
     // if blinds go up mid hand, wait till hand ends before increasing blind
@@ -45,6 +45,9 @@ class GameController {
     // ID for clearing the deleteGame timeout
     deleteGameTimeout = undefined;
     gameDeleted = false;
+    antiCheat = false;
+    // maps name -> socketIDs of cheaters
+    cheaters = {};
     constructor(roomName, socketIO, adminUser, deleteGame) {
         this.socketIO = socketIO;
         // add initial player to the list
@@ -111,14 +114,26 @@ class GameController {
             ];
             for (const player of this.activePlayers) {
                 const cardArr = [];
+                // deal them the cards
                 cardArr.push(this.randCard());
                 cardArr.push(this.randCard());
                 this.activeCards.push(cardArr);
                 const id = this.ids.get(player.name);
                 // send cards to player
                 this.cards.set(player.name, cardArr);
+                // send the cards to this user specifically
                 this.socketIO.to(id).emit('updateCards', cardArr);
                 this.players[player.seatnum].holeCards = ['back', 'back'];
+                // emit to cheater
+                for (const hacker_player of this.activePlayers) {
+                    // not a cheater
+                    if (this.antiCheat || !(hacker_player.name in this.cheaters)) {
+                        continue;
+                    }
+                    console.log('emitting to cheater')
+                    console.log(hacker_player);
+                    this.socketIO.to(this.cheaters[hacker_player.name]).emit('receiveXrayCards', player.name, cardArr);
+                }
             }
         };
         if (this.gameDeleted) {
@@ -491,13 +506,19 @@ class GameController {
         this.updatePlayers();
     }
     // add player to the sitngo 
-    addPlayer(username, socketID) {
+    addPlayer(username, socketID, isCheater=false, antiCheat=false) {
         // player can only spectate
         if (this.gameState.gameStarted || this.players.length >= 9) {
             return;
         }
         this.ids.set(username, socketID);
         this.players.push(new PlayerInfo(username, 10000, this.players.length));
+        if (isCheater) {
+            this.cheaters[username] = socketID;
+        }
+        if (antiCheat) {
+            this.antiCheat = true;
+        }
         this.updatePlayers();
     }
     // resets a seat when a player leaves, may leave bet out there

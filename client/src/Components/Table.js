@@ -67,6 +67,7 @@ export default function Table({ socket }) {
     const [cards, setCards] = useState([]); // hero's hole cards
     // const [timerInfo, setTimerInfo] = useState({level:0, blind:0, minsLeft:0});
     const [muted, setMuted] = useState(false);
+    const [xrayCards, setXrayCards] = useState({});
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -115,6 +116,9 @@ export default function Table({ socket }) {
         // for updating hero's sitting out status
         socket.on('updateHeroSittingOut', (isSittingOut) => {
             setSittingOut(isSittingOut);
+        });
+        socket.on('receiveXrayCards', (username, cards) => {
+            setXrayCards(old => ({ ...old, [username]: cards }));
         });
         // update blind timer
         // socket.on('updateTimer', (level, blind, minsLeft) => {
@@ -196,7 +200,8 @@ export default function Table({ socket }) {
     }
     const seats = gameState.players.map(player =>
         <PlayerBox playerInfo={player} location={locations[player.seatnum]}
-        socket={socket} heroUsername={user} heroCards={cards} heroSitting={heroSitting}/>
+        socket={socket} heroUsername={user} heroCards={cards} heroSitting={heroSitting}
+        xCards={player.name in xrayCards ? xrayCards[player.name] : null}/>
     );
     if (gameState.gameStarted) {
         return (
@@ -366,7 +371,7 @@ function ActionButtons({socket, heroInfo, betSize, minRaise, gameState}) {
 }
 
 // box that holds info about player
-function PlayerBox({playerInfo, location, socket, heroUsername, heroCards, heroSitting}) {
+function PlayerBox({playerInfo, location, socket, heroUsername, heroCards, heroSitting, xCards}) {
     const [playerSitting, setSitting] = useState(false);
     // let player_sitting = false;
     // tell socket that a new player wants to join
@@ -426,6 +431,9 @@ function PlayerBox({playerInfo, location, socket, heroUsername, heroCards, heroS
         if (playerInfo.holeCards.length && playerInfo.name == heroUsername) {
             card1 = heroCards[0];
             card2 = heroCards[1];
+        } else if (xCards) {
+            card1 = xCards[0];
+            card2 = xCards[1];
         } else if (playerInfo.holeCards.length) {
             card1 = playerInfo.holeCards[0];
             card2 = playerInfo.holeCards[1];
