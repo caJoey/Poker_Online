@@ -273,7 +273,7 @@ app.get('/joinGame', (req, res) => {
     // join this game
     info.gameController = gameController;
     socket.join(guess);
-    info.gameController.addPlayer(info.username, socketID);
+    info.gameController.addPlayer(info.username, socketID, info.isCheater, info.antiCheat);
     res.json({
         success: true
     });

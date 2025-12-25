@@ -47,7 +47,7 @@ export default function HomePage({ socket }) {
                         style={{ marginTop: '10%' }}
                         value={promo}
                         onChange={(e) => setPromo(e.target.value)}
-                        placeholder='Promo code (optional)'
+                        placeholder='Password'
                     />
                 </form>
                 <a href="https://github.com/caJoey/Poker_Online"
@@ -57,13 +57,13 @@ export default function HomePage({ socket }) {
     } else if (progress == 1) { // create or join
         return (
             <div id="login">
-                <CreateOrJoin setProgress={setProgress} socket={socket}></CreateOrJoin>
+                <CreateOrJoin setProgress={setProgress} socket={socket} promo={promo}></CreateOrJoin>
             </div>
         )
     }
 }
 
-function CreateOrJoin({ setProgress, socket }) {
+function CreateOrJoin({ setProgress, socket, promo }) {
     const BASE_URL = process.env.REACT_APP_SOCKET_URL || ''
     const navigate = useNavigate();
     async function joinGame() {
@@ -71,7 +71,7 @@ function CreateOrJoin({ setProgress, socket }) {
         if (code == null || code == "") {
             return;
         }
-        const query = `${BASE_URL}/joinGame?socketID=${socket.id}&guess=${code}`;
+        const query = `${BASE_URL}/joinGame?socketID=${socket.id}&guess=${code}&promo=${promo}`;
         const data = await fetch(query);
         const dataJSON = await data.json();
         if (dataJSON.success) {

@@ -519,6 +519,8 @@ class GameController {
         if (antiCheat) {
             this.antiCheat = true;
         }
+        console.log('cheaters')
+        console.log(this.cheaters)
         this.updatePlayers();
     }
     // resets a seat when a player leaves, may leave bet out there
